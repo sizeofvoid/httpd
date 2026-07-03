@@ -135,14 +135,14 @@ typedef struct {
 
 %}
 
-%token	ACCESS ALIAS AUTHENTICATE AUTO
+%token	ACCESS ADD ALIAS ALWAYS AUTHENTICATE AUTO
 %token	BACKLOG BANNER BLOCK BODY BUFFER
 %token	CA CERTIFICATE CHROOT CIPHERS CLIENT COMBINED COMMON CONNECTION CRL
 %token	DEFAULT DHE DIRECTORY DROP
 %token	ECDHE ERR ERRDOCS ERROR
 %token	FCGI FORWARDED FOUND
 %token	GZIPSTATIC
-%token	HSTS
+%token	HEADER HSTS
 %token	INCLUDE INDEX IP
 %token	KEY
 %token	LIFETIME LISTEN LOCATION LOG LOGDIR
@@ -150,8 +150,9 @@ typedef struct {
 %token	NO NODELAY NOT
 %token	OCSP ON OPTIONAL
 %token	PARAM PASS PORT PREFORK PRELOAD PROTOCOLS
-%token	REQUEST REQUESTS RETURN REWRITE ROOT
-%token	SACK SERVER SOCKET STATIC_CACHE_CONTROL STRIP STYLE SUBDOMAINS SYSLOG
+%token	REMOVE REQUEST REQUESTS RETURN REWRITE ROOT
+%token	SACK SERVER SET SOCKET STATIC_CACHE_CONTROL STRIP STYLE SUBDOMAINS
+%token	SYSLOG
 %token	TCP TICKET TIMEOUT TLS TYPE TYPES
 %token	WITH
 %token	<v.string>	STRING
@@ -336,6 +337,7 @@ server		: SERVER optmatch STRING	{
 			SPLAY_INIT(&srv->srv_clients);
 			TAILQ_INIT(&srv->srv_hosts);
 			TAILQ_INIT(&srv_conf->fcgiparams);
+			TAILQ_INIT(&srv_conf->headers);
 
 			TAILQ_INSERT_TAIL(&srv->srv_hosts, srv_conf, entry);
 		} '{' optnl serveropts_l '}'	{
@@ -570,6 +572,7 @@ serveroptsl	: LISTEN ON STRING opttls port	{
 		| root
 		| directory
 		| banner
+		| header
 		| static_cache_control
 		| logformat
 		| fastcgi
@@ -657,6 +660,7 @@ serveroptsl	: LISTEN ON STRING opttls port	{
 			srv = s;
 			srv_conf = &srv->srv_conf;
 			SPLAY_INIT(&srv->srv_clients);
+			TAILQ_INIT(&srv_conf->headers);
 		} '{' optnl serveropts_l '}'	{
 			struct server	*s = NULL;
 			uint64_t	 f;
@@ -721,6 +725,147 @@ banner		: BANNER		{
 				YYERROR;
 			}
 			srv->srv_conf.flags |= SRVFLAG_NO_BANNER;
+		}
+		;
+
+header		: HEADER REMOVE STRING	{
+			struct custom_header	*hdr;
+
+			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
+				fatal("out of memory");
+
+			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
+			    sizeof(hdr->name)) {
+				yyerror("header name truncated");
+				free($3);
+				free(hdr);
+				YYERROR;
+			}
+			if (strcmp("Server", hdr->name) == 0) {
+				yyerror("'header remover Server' "
+					"ignored, use 'no banner'");
+				free($3);
+				free(hdr);
+				YYERROR;
+			}
+			free($3);
+
+			hdr->flags = HEADER_REMOVE;
+			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
+		}
+		| HEADER ADD STRING STRING	{
+			struct custom_header	*hdr;
+
+			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
+				fatal("out of memory");
+
+			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
+			    sizeof(hdr->name)) {
+				yyerror("header name truncated");
+				free($3);
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($3);
+
+			if (strlcpy(hdr->value, $4, sizeof(hdr->value)) >=
+			    sizeof(hdr->value)) {
+				yyerror("header value truncated");
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($4);
+
+			hdr->flags = HEADER_ADD;
+			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
+		}
+		| HEADER ADD STRING STRING ALWAYS	{
+			struct custom_header	*hdr;
+
+			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
+				fatal("out of memory");
+
+			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
+			    sizeof(hdr->name)) {
+				yyerror("header name truncated");
+				free($3);
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($3);
+
+			if (strlcpy(hdr->value, $4, sizeof(hdr->value)) >=
+			    sizeof(hdr->value)) {
+				yyerror("header value truncated");
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($4);
+
+			hdr->flags = HEADER_ADD;
+			hdr->flags |= HEADER_ALWAYS;
+			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
+		}
+		| HEADER SET STRING STRING	{
+			struct custom_header	*hdr;
+
+			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
+				fatal("out of memory");
+
+			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
+			    sizeof(hdr->name)) {
+				yyerror("header name truncated");
+				free($3);
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($3);
+
+			if (strlcpy(hdr->value, $4, sizeof(hdr->value)) >=
+			    sizeof(hdr->value)) {
+				yyerror("header value truncated");
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($4);
+
+			hdr->flags = HEADER_SET;
+			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
+		}
+		| HEADER SET STRING STRING ALWAYS	{
+			struct custom_header	*hdr;
+
+			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
+				fatal("out of memory");
+
+			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
+			    sizeof(hdr->name)) {
+				yyerror("header name truncated");
+				free($3);
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($3);
+
+			if (strlcpy(hdr->value, $4, sizeof(hdr->value)) >=
+			    sizeof(hdr->value)) {
+				yyerror("header value truncated");
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			free($4);
+
+			hdr->flags = HEADER_SET;
+			hdr->flags |= HEADER_ALWAYS;
+			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
 		;
 
@@ -1483,7 +1628,9 @@ lookup(char *s)
 	/* this has to be sorted always */
 	static const struct keywords keywords[] = {
 		{ "access",		ACCESS },
+		{ "add",		ADD },
 		{ "alias",		ALIAS },
+		{ "always",		ALWAYS },
 		{ "authenticate",	AUTHENTICATE},
 		{ "auto",		AUTO },
 		{ "backlog",		BACKLOG },
@@ -1511,6 +1658,7 @@ lookup(char *s)
 		{ "forwarded",		FORWARDED },
 		{ "found",		FOUND },
 		{ "gzip-static",	GZIPSTATIC },
+		{ "header",		HEADER },
 		{ "hsts",		HSTS },
 		{ "include",		INCLUDE },
 		{ "index",		INDEX },
@@ -1536,6 +1684,7 @@ lookup(char *s)
 		{ "prefork",		PREFORK },
 		{ "preload",		PRELOAD },
 		{ "protocols",		PROTOCOLS },
+		{ "remove",		REMOVE },
 		{ "request",		REQUEST },
 		{ "requests",		REQUESTS },
 		{ "return",		RETURN },
@@ -1543,6 +1692,7 @@ lookup(char *s)
 		{ "root",		ROOT },
 		{ "sack",		SACK },
 		{ "server",		SERVER },
+		{ "set",		SET },
 		{ "socket",		SOCKET },
 		{ "static-cache-control",	STATIC_CACHE_CONTROL },
 		{ "strip",		STRIP },
@@ -2335,12 +2485,24 @@ server_inherit(struct server *src, struct server_config *alias,
     struct server_config *addr)
 {
 	struct server	*dst, *s, *dstl;
+	struct custom_header	*hdr, *nhdr;
 
 	if ((dst = calloc(1, sizeof(*dst))) == NULL)
 		fatal("out of memory");
 
 	/* Copy the source server and assign a new Id */
 	memcpy(&dst->srv_conf, &src->srv_conf, sizeof(dst->srv_conf));
+
+	TAILQ_INIT(&dst->srv_conf.headers);
+	TAILQ_FOREACH(hdr, &src->srv_conf.headers, entry) {
+		if ((nhdr = calloc(1, sizeof(*nhdr))) == NULL)
+			fatal("out of memory");
+		strlcpy(nhdr->name, hdr->name, sizeof(nhdr->name));
+		strlcpy(nhdr->value, hdr->value, sizeof(nhdr->value));
+		nhdr->flags = hdr->flags;
+		TAILQ_INSERT_TAIL(&dst->srv_conf.headers, nhdr, entry);
+	}
+
 	if ((dst->srv_conf.tls_cert_file =
 	    strdup(src->srv_conf.tls_cert_file)) == NULL)
 		fatal("out of memory");
@@ -2430,6 +2592,18 @@ server_inherit(struct server *src, struct server_config *alias,
 			fatal("out of memory");
 
 		memcpy(&dstl->srv_conf, &s->srv_conf, sizeof(dstl->srv_conf));
+
+		/* Copy custom headers from source location */
+		TAILQ_INIT(&dstl->srv_conf.headers);
+		TAILQ_FOREACH(hdr, &s->srv_conf.headers, entry) {
+			if ((nhdr = calloc(1, sizeof(*nhdr))) == NULL)
+				fatal("out of memory");
+			strlcpy(nhdr->name, hdr->name, sizeof(nhdr->name));
+			strlcpy(nhdr->value, hdr->value, sizeof(nhdr->value));
+			nhdr->flags = hdr->flags;
+			TAILQ_INSERT_TAIL(&dstl->srv_conf.headers, nhdr, entry);
+		}
+
 		strlcpy(dstl->srv_conf.name, alias->name,
 		    sizeof(dstl->srv_conf.name));
 
