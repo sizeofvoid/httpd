@@ -269,9 +269,6 @@ config_setserver(struct httpd *env, struct server *srv)
 					return (-1);
 				}
 			}
-<<<<<<< HEAD
-=======
-
 			/* Configure TLS if necessary. */
 			config_setserver_tls(env, srv);
 			/* Configure custom headers if necessary. */
@@ -384,12 +381,11 @@ config_getserver_fcgiparams(struct httpd *env, struct imsg *imsg)
 	p += sizeof(nc);
 
 	memcpy(&id, p, sizeof(id));	/* server conf id */
-	p += sizeof(id);
-
 	if ((srv_conf = serverconfig_byid(id)) == NULL) {
-		log_debug("%s: server not found", __func__);
-		return(-1);
+		log_debug("%s: invalid config id", __func__);
+		return (-1);
 	}
+	p += sizeof(id);
 
 	len += nc*sizeof(*fp);
 	if (IMSG_DATA_SIZE(imsg) < len) {
@@ -472,7 +468,10 @@ config_getserver_headers(struct httpd *env, struct imsg *imsg)
 	p += sizeof(nc);
 
 	memcpy(&id, p, sizeof(id));	/* server conf id */
-	srv_conf = serverconfig_byid(id);
+	if ((srv_conf = serverconfig_byid(id)) == NULL) {
+		log_debug("%s: invalid config id", __func__);
+		return (-1);
+	}
 	p += sizeof(id);
 
 	len += nc*sizeof(*hdr);

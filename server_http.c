@@ -60,7 +60,7 @@ ssize_t		 server_create_builtin(struct server_config *, char **,
 		    unsigned int, const char *);
 char		*server_create_errdoc(struct server_config *, unsigned int,
 		    const char *);
-char		*get_always_custom_headers(struct server_config *);
+static char	*get_always_custom_headers(struct server_config *);
 
 static struct http_method	 http_methods[] = HTTP_METHODS;
 static struct http_error	 http_errors[] = HTTP_ERRORS;
@@ -221,24 +221,11 @@ http_version_num(char *version)
 	}
 	return (0);
 }
+
 static int
 http_is_success(unsigned int code)
 {
-	switch (code) {
-	case 200:
-	case 201:
-	case 204:
-	case 206:
-	case 301:
-	case 302:
-	case 303:
-	case 304:
-	case 307:
-	case 308:
-		return (0);
-	default:
-		return (1);
-	}
+	return (code >= 200 && code < 400);
 }
 
 void
@@ -1634,8 +1621,7 @@ server_custom_headers(struct server_config *srv_conf, struct kvtree *headers,
 
 	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
 		/* Only include headers not marked ALWAYS on success. */
-		if (!(hdr->flags & HEADER_ALWAYS) &&
-		    http_is_success(code) != 0)
+		if (!(hdr->flags & HEADER_ALWAYS) && !http_is_success(code))
 			continue;
 
 		search.kv_key = hdr->name;
