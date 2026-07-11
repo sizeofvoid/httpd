@@ -1624,6 +1624,9 @@ server_custom_headers(struct server_config *srv_conf, struct kvtree *headers,
 		if (!(hdr->flags & HEADER_ALWAYS) && !http_is_success(code))
 			continue;
 
+		if (strcmp(hdr->name, "Content-Type") == 0)
+			continue;
+
 		search.kv_key = hdr->name;
 
 		/* deletes all existing headers of the same key */
