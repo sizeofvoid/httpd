@@ -891,6 +891,8 @@ config_getserver(struct httpd *env, struct imsg *imsg)
 	memcpy(&srv->srv_conf, &srv_conf, sizeof(srv->srv_conf));
 	srv->srv_s = fd;
 
+	TAILQ_INIT(&srv->srv_conf.headers);
+
 	if (config_getserver_auth(env, &srv->srv_conf) != 0)
 		goto fail;
 
