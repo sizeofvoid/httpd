@@ -268,9 +268,6 @@ config_setserver(struct httpd *env, struct server *srv)
 					return (-1);
 				}
 			}
-
-			/* Configure TLS if necessary. */
-			config_setserver_tls(env, srv);
 		} else {
 			if (proc_composev(ps, id, IMSG_CFG_SERVER,
 			    iov, c) != 0) {
@@ -279,11 +276,18 @@ config_setserver(struct httpd *env, struct server *srv)
 				    __func__, srv->srv_conf.name);
 				return (-1);
 			}
-
-			/* Configure FCGI parameters if necessary. */
-			config_setserver_fcgiparams(env, srv);
 		}
 	}
+
+	if ((srv->srv_conf.flags & SRVFLAG_LOCATION) == 0) {
+		/* Configure TLS if necessary. */
+		if (config_setserver_tls(env, srv) != 0)
+			return (-1);
+	}
+
+	/* Configure FCGI parameters if necessary. */
+	if (config_setserver_fcgiparams(env, srv) != 0)
+		return (-1);
 
 	/* Close server socket early to prevent fd exhaustion in the parent. */
 	if (srv->srv_s != -1) {
