@@ -742,7 +742,7 @@ header		: HEADER REMOVE STRING	{
 				YYERROR;
 			}
 			if (strcmp("Server", hdr->name) == 0) {
-				yyerror("'header remover Server' "
+				yyerror("'header remove Server' "
 					"ignored, use 'no banner'");
 				free($3);
 				free(hdr);

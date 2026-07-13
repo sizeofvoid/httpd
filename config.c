@@ -381,10 +381,7 @@ config_getserver_fcgiparams(struct httpd *env, struct imsg *imsg)
 	p += sizeof(nc);
 
 	memcpy(&id, p, sizeof(id));	/* server conf id */
-	if ((srv_conf = serverconfig_byid(id)) == NULL) {
-		log_debug("%s: invalid config id", __func__);
-		return (-1);
-	}
+	srv_conf = serverconfig_byid(id);
 	p += sizeof(id);
 
 	len += nc*sizeof(*fp);
@@ -451,8 +448,7 @@ config_setserver_fcgiparams(struct httpd *env, struct server *srv)
 int
 config_getserver_headers(struct httpd *env, struct imsg *imsg)
 {
-	struct server		*srv;
-	struct server_config	*srv_conf, *iconf;
+	struct server_config	*srv_conf;
 	struct custom_header	*hdr;
 	uint32_t		 id;
 	size_t			 c, nc, len;
@@ -468,30 +464,16 @@ config_getserver_headers(struct httpd *env, struct imsg *imsg)
 	p += sizeof(nc);
 
 	memcpy(&id, p, sizeof(id));	/* server conf id */
+	p += sizeof(id);
 	if ((srv_conf = serverconfig_byid(id)) == NULL) {
 		log_debug("%s: invalid config id", __func__);
 		return (-1);
 	}
-	p += sizeof(id);
 
 	len += nc*sizeof(*hdr);
 	if (IMSG_DATA_SIZE(imsg) < len) {
 		log_debug("%s: invalid message length", __func__);
 		return (-1);
-	}
-
-	/* Find associated server config */
-	TAILQ_FOREACH(srv, env->sc_servers, srv_entry) {
-		if (srv->srv_conf.id == id) {
-			srv_conf = &srv->srv_conf;
-			break;
-		}
-		TAILQ_FOREACH(iconf, &srv->srv_hosts, entry) {
-			if (iconf->id == id) {
-				srv_conf = iconf;
-				break;
-			}
-		}
 	}
 
 	/* Fetch custom headers */
@@ -503,12 +485,11 @@ config_getserver_headers(struct httpd *env, struct imsg *imsg)
 
 		p += sizeof(*hdr);
 	}
-
 	return (0);
 }
 
 static int
-header_exists(struct server_config *srv_conf, const char *name)
+config_header_exists(struct server_config *srv_conf, const char *name)
 {
 	struct custom_header	*hdr;
 
@@ -543,7 +524,7 @@ config_inherit_headers(struct httpd *env, struct server *srv)
 		return;
 
 	TAILQ_FOREACH(hdr, &parent_srv->srv_conf.headers, entry) {
-		if (header_exists(srv_conf, hdr->name)) {
+		if (config_header_exists(srv_conf, hdr->name)) {
 			DPRINTF("%s: skipping header \"%s\" from parent "
 			    "\"%s\", overridden in location \"%s\"",
 			    __func__, hdr->name,

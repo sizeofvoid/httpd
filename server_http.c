@@ -1055,6 +1055,7 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 	free(hstsheader);
 	free(clenheader);
 	free(bannerheader);
+	free(customheaders);
 	return;
 
  done:
