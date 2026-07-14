@@ -464,45 +464,32 @@ config_getserver_headers(struct httpd *env, struct imsg *imsg)
 	struct server_config	*srv_conf;
 	struct custom_header	*hdr;
 	uint32_t		 id;
-	size_t			 c, nc, len;
 	uint8_t			*p = imsg->data;
 
-	len = sizeof(nc) + sizeof(id);
-	if (IMSG_DATA_SIZE(imsg) < len) {
+	if (IMSG_DATA_SIZE(imsg) != sizeof(id) + sizeof(*hdr)) {
 		log_debug("%s: invalid message length", __func__);
 		return (-1);
 	}
 
-	memcpy(&nc, p, sizeof(nc));	/* number of headers */
-	p += sizeof(nc);
-
 	memcpy(&id, p, sizeof(id));	/* server conf id */
 	p += sizeof(id);
+
 	if ((srv_conf = serverconfig_byid(id)) == NULL) {
 		log_debug("%s: invalid config id", __func__);
 		return (-1);
 	}
 
-	len += nc*sizeof(*hdr);
-	if (IMSG_DATA_SIZE(imsg) < len) {
-		log_debug("%s: invalid message length", __func__);
-		return (-1);
-	}
+	if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
+		fatal("headers out of memory");
 
-	/* Fetch custom headers */
-	for (c = 0; c < nc; c++) {
-		if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
-			fatalx("out of memory");
-		memcpy(hdr, p, sizeof(*hdr));
-		TAILQ_INSERT_TAIL(&srv_conf->headers, hdr, entry);
+	memcpy(hdr, p, sizeof(*hdr));
 
-		p += sizeof(*hdr);
-	}
+	TAILQ_INSERT_TAIL(&srv_conf->headers, hdr, entry);
+
 #ifdef DEBUG
-	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
-		server_print_custom_header(__func__, hdr);
-	}
+	server_print_custom_header(__func__, hdr);
 #endif
+
 	return (0);
 }
 
@@ -577,38 +564,25 @@ config_setserver_headers(struct httpd *env, struct server *srv)
 	struct privsep		*ps = env->sc_ps;
 	struct server_config	*srv_conf = &srv->srv_conf;
 	struct custom_header	*hdr;
-	struct iovec		*iov;
-	size_t			 c = 0, nc = 0;
+	struct iovec		 iov[2];
 
 	DPRINTF("%s: sending headers for \"%s[%u]\" to %s fd %d", __func__,
 	    srv_conf->name, srv_conf->id, ps->ps_title[PROC_SERVER],
 	    srv->srv_s);
 
-	if (TAILQ_EMPTY(&srv_conf->headers))	/* nothing to do */
-		return (0);
-
 	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
-		nc++;
-	}
-	if ((iov = calloc(nc + 2, sizeof(*iov))) == NULL)
-		return (-1);
+		iov[0].iov_base = &srv_conf->id;
+		iov[0].iov_len = sizeof(srv_conf->id);
+		iov[1].iov_base = hdr;
+		iov[1].iov_len = sizeof(*hdr);
 
-	iov[c].iov_base = &nc;			/* number of headers */
-	iov[c++].iov_len = sizeof(nc);
-	iov[c].iov_base = &srv_conf->id;	/* server config id */
-	iov[c++].iov_len = sizeof(srv_conf->id);
-
-	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {	/* push headers */
-		iov[c].iov_base = hdr;
-		iov[c++].iov_len = sizeof(*hdr);
+		if (proc_composev(ps, PROC_SERVER, IMSG_CFG_HEADERS,
+		    iov, 2) != 0) {
+			log_warn("%s: failed to compose IMSG_CFG_HEADERS "
+			    "imsg for `%s'", __func__, srv_conf->name);
+			return (-1);
+		}
 	}
-	if (proc_composev(ps, PROC_SERVER, IMSG_CFG_HEADERS, iov, c) != 0) {
-		log_warn("%s: failed to compose IMSG_CFG_HEADERS imsg for "
-		    "`%s'", __func__, srv_conf->name);
-		free(iov);
-		return (-1);
-	}
-	free(iov);
 
 	return (0);
 }
