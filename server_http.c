@@ -229,6 +229,21 @@ http_is_success(unsigned int code)
 }
 
 void
+server_print_custom_header(const char *i, const struct custom_header *hdr)
+{
+	if (hdr == NULL) {
+		DPRINTF("%s: hdr=NULL", i);
+		return;
+	}
+	DPRINTF("%s: hdr (%s%s%s%s) %s: %s", i,
+	    (hdr->flags & HEADER_REMOVE) ? "remove " : "",
+	    (hdr->flags & HEADER_ADD)    ? "add "    : "",
+	    (hdr->flags & HEADER_SET)    ? "set "    : "",
+	    (hdr->flags & HEADER_ALWAYS) ? "always"  : "",
+	    hdr->name, hdr->value);
+}
+
+void
 server_read_http(struct bufferevent *bev, void *arg)
 {
 	struct client		*clt = arg;
@@ -1622,17 +1637,21 @@ server_custom_headers(struct server_config *srv_conf, struct kvtree *headers,
 
 	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
 		/* Only include headers not marked ALWAYS on success. */
-		if (!(hdr->flags & HEADER_ALWAYS) && !http_is_success(code))
+		if (!(hdr->flags & HEADER_ALWAYS) && !http_is_success(code)) {
+			server_print_custom_header("skip", hdr);
 			continue;
+		}
 
 		search.kv_key = hdr->name;
 
 		/* deletes all existing headers of the same key */
 		if (hdr->flags & HEADER_REMOVE) {
+			server_print_custom_header("remove", hdr);
 			while ((kv = kv_find(headers, &search)) != NULL)
 				kv_delete(headers, kv);
 		/* replaces all existing headers of the same name */
 		} else if (hdr->flags & HEADER_SET) {
+			server_print_custom_header("set", hdr);
 			while ((kv = kv_find(headers, &search)) != NULL)
 				kv_delete(headers, kv);
 
@@ -1640,6 +1659,7 @@ server_custom_headers(struct server_config *srv_conf, struct kvtree *headers,
 				return;
 		/* appends a new header without checking for duplicates */
 		} else if (hdr->flags & HEADER_ADD) {
+			server_print_custom_header("add", hdr);
 			if (kv_add(headers, hdr->name, hdr->value) == NULL)
 				return;
 		}
@@ -1660,6 +1680,8 @@ get_always_custom_headers(struct server_config *srv_conf)
 		if (!(hdr->flags & HEADER_ALWAYS)
 		      || hdr->flags & HEADER_REMOVE)
 			continue;
+
+		server_print_custom_header(__func__, hdr);
 
 		if (headers == NULL) {
 			if (asprintf(&headers, "%s: %s\r\n", hdr->name,

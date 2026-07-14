@@ -414,10 +414,10 @@ enum log_format {
 };
 
 enum header_fags {
-	HEADER_REMOVE,
-	HEADER_ADD,
-	HEADER_SET,
-	HEADER_ALWAYS
+	HEADER_REMOVE	= 0x01,
+	HEADER_ADD	= 0x02,
+	HEADER_SET	= 0x04,
+	HEADER_ALWAYS	= 0x08
 };
 
 struct log_file {
@@ -664,6 +664,8 @@ void	 server_read_http(struct bufferevent *, void *);
 void	 server_abort_http(struct client *, unsigned int, const char *);
 void	 server_custom_headers(struct server_config *, struct kvtree *,
 	    unsigned int);
+void	 server_print_custom_header(const char *,
+	    const struct custom_header *);
 unsigned int
 	 server_httpmethod_byname(const char *);
 const char

@@ -485,6 +485,11 @@ config_getserver_headers(struct httpd *env, struct imsg *imsg)
 
 		p += sizeof(*hdr);
 	}
+#ifdef DEBUG
+	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
+		server_print_custom_header(__func__, hdr);
+	}
+#endif
 	return (0);
 }
 
