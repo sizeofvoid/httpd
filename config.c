@@ -352,8 +352,7 @@ config_settls(struct httpd *env, struct server *srv, enum tls_config_type type,
 int
 config_getserver_fcgiparams(struct httpd *env, struct imsg *imsg)
 {
-	struct server		*srv;
-	struct server_config	*srv_conf, *iconf;
+	struct server_config	*srv_conf;
 	struct fastcgi_param	*fp;
 	uint32_t		 id;
 	size_t			 c, nc, len;
@@ -369,27 +368,17 @@ config_getserver_fcgiparams(struct httpd *env, struct imsg *imsg)
 	p += sizeof(nc);
 
 	memcpy(&id, p, sizeof(id));	/* server conf id */
-	srv_conf = serverconfig_byid(id);
 	p += sizeof(id);
+
+	if ((srv_conf = serverconfig_byid(id)) == NULL) {
+		log_debug("%s: server not found", __func__);
+		return(-1);
+	}
 
 	len += nc*sizeof(*fp);
 	if (IMSG_DATA_SIZE(imsg) < len) {
 		log_debug("%s: invalid message length", __func__);
 		return (-1);
-	}
-
-	/* Find associated server config */
-	TAILQ_FOREACH(srv, env->sc_servers, srv_entry) {
-		if (srv->srv_conf.id == id) {
-			srv_conf = &srv->srv_conf;
-			break;
-		}
-		TAILQ_FOREACH(iconf, &srv->srv_hosts, entry) {
-			if (iconf->id == id) {
-				srv_conf = iconf;
-				break;
-			}
-		}
 	}
 
 	/* Fetch FCGI parameters */
