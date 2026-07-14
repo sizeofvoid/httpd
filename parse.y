@@ -121,6 +121,7 @@ int		 getservice(char *);
 int		 is_if_in_group(const char *, const char *);
 int		 get_fastcgi_dest(struct server_config *, const char *, char *);
 void		 remove_locations(struct server_config *);
+int		 header_name_forbidden(const char *);
 
 typedef struct {
 	union {
@@ -753,6 +754,11 @@ header		: HEADER REMOVE STRING	{
 				free(hdr);
 				YYERROR;
 			}
+			if (header_name_forbidden(hdr->name)) {
+				free($3);
+				free(hdr);
+				YYERROR;
+			}
 			free($3);
 
 			hdr->flags = HEADER_REMOVE;
@@ -767,6 +773,12 @@ header		: HEADER REMOVE STRING	{
 			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
 			    sizeof(hdr->name)) {
 				yyerror("header name truncated");
+				free($3);
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			if (header_name_forbidden(hdr->name)) {
 				free($3);
 				free($4);
 				free(hdr);
@@ -798,6 +810,12 @@ header		: HEADER REMOVE STRING	{
 			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
 			    sizeof(hdr->name)) {
 				yyerror("header name truncated");
+				free($3);
+				free($4);
+				free(hdr);
+				YYERROR;
+			}
+			if (header_name_forbidden(hdr->name)) {
 				free($3);
 				free($4);
 				free(hdr);
@@ -2430,6 +2448,20 @@ host(const char *s, struct addresslist *al, int max,
 	}
 
 	return (host_dns(s, al, max, port, ifname, ipproto));
+}
+
+int
+header_name_forbidden(const char *name)
+{
+	if (strcasecmp(name, "Content-Length") == 0 ||
+	    strcasecmp(name, "Transfer-Encoding") == 0 ||
+	    strcasecmp(name, "Connection") == 0 ||
+	    strcasecmp(name, "Date") == 0) {
+		yyerror("header \"%s\" is reserved and cannot be "
+		    "set from httpd.conf, ignored", name);
+		return (1);
+	}
+	return (0);
 }
 
 struct server *
