@@ -662,7 +662,7 @@ void	 server_http(void);
 int	 server_httpdesc_init(struct client *);
 void	 server_read_http(struct bufferevent *, void *);
 void	 server_abort_http(struct client *, unsigned int, const char *);
-void	 server_custom_headers(struct server_config *, struct kvtree *,
+int	 server_custom_headers(struct server_config *, struct kvtree *,
 	    unsigned int);
 void	 server_print_custom_header(const char *,
 	    const struct custom_header *);

@@ -479,7 +479,7 @@ config_getserver_headers(struct httpd *env, struct imsg *imsg)
 	/* Fetch custom headers */
 	for (c = 0; c < nc; c++) {
 		if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
-			fatalx("headers out of memory");
+			fatalx("out of memory");
 		memcpy(hdr, p, sizeof(*hdr));
 		TAILQ_INSERT_TAIL(&srv_conf->headers, hdr, entry);
 
@@ -540,8 +540,10 @@ config_inherit_headers(struct httpd *env, struct server *srv)
 		if ((hdr_copy = calloc(1, sizeof(*hdr_copy))) == NULL)
 			fatal("out of memory");
 
-		strlcpy(hdr_copy->name, hdr->name, sizeof(hdr_copy->name));
-		strlcpy(hdr_copy->value, hdr->value, sizeof(hdr_copy->value));
+		(void)strlcpy(hdr_copy->name, hdr->name,
+			    sizeof(hdr_copy->name));
+		(void)strlcpy(hdr_copy->value, hdr->value,
+			    sizeof(hdr_copy->value));
 		hdr_copy->flags = hdr->flags;
 
 		TAILQ_INSERT_TAIL(&srv_conf->headers, hdr_copy, entry);

@@ -1036,7 +1036,6 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 	    "%s"
 	    "%s"
 	    "%s"
-	    "%s"
 	    "\r\n"
 	    "%s",
 	    code, httperr, tmbuf,
@@ -1621,7 +1620,7 @@ server_locationaccesstest(struct server_config *srv_conf, const char *path)
 	    (ret == 0 && SRVFLAG_LOCATION_NOT_FOUND & srv_conf->flags));
 }
 
-void
+int
 server_custom_headers(struct server_config *srv_conf, struct kvtree *headers,
     unsigned int code)
 {
@@ -1649,14 +1648,15 @@ server_custom_headers(struct server_config *srv_conf, struct kvtree *headers,
 				kv_delete(headers, kv);
 
 			if (kv_add(headers, hdr->name, hdr->value) == NULL)
-				return;
+				return (-1);
 		/* appends a new header without checking for duplicates */
 		} else if (hdr->flags & HEADER_ADD) {
 			server_print_custom_header("add", hdr);
 			if (kv_add(headers, hdr->name, hdr->value) == NULL)
-				return;
+				return (-1);
 		}
 	}
+	return(0);
 }
 
 int
@@ -1735,7 +1735,9 @@ server_response_http(struct client *clt, unsigned int code,
 		    "; preload" : "") == -1)
 			return (-1);
 	}
-	server_custom_headers(srv_conf, &resp->http_headers, code);
+
+	if (server_custom_headers(srv_conf, &resp->http_headers, code) == -1)
+		return (-1);
 
 	/* Date header is mandatory and should be added as late as possible */
 	if (server_http_time(time(NULL), tmbuf, sizeof(tmbuf)) <= 0 ||
