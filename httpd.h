@@ -413,7 +413,7 @@ enum log_format {
 	LOG_FORMAT_FORWARDED
 };
 
-enum header_fags {
+enum header_flags {
 	HEADER_REMOVE	= 0x01,
 	HEADER_ADD	= 0x02,
 	HEADER_SET	= 0x04,
@@ -461,7 +461,7 @@ TAILQ_HEAD(server_fcgiparams, fastcgi_param);
 struct custom_header {
 	char			name[HTTPD_HEADER_NAME_MAX];
 	char			value[HTTPD_HEADER_VAL_MAX];
-	enum header_fags	flags;
+	enum header_flags	flags;
 
 	TAILQ_ENTRY(custom_header) entry;
 };
