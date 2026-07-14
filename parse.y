@@ -159,7 +159,7 @@ typedef struct {
 %token  <v.number>	NUMBER
 %type	<v.port>	port
 %type	<v.string>	fcgiport
-%type	<v.number>	opttls optmatch optfound
+%type	<v.number>	optalways opttls optmatch optfound
 %type	<v.tv>		timeout
 %type	<v.string>	numberstring optstring
 %type	<v.auth>	authopts
@@ -728,6 +728,11 @@ banner		: BANNER		{
 		}
 		;
 
+optalways	:
+		/* empty */ { $$ = 0; }
+		| ALWAYS    { $$ = 1; }
+		;
+
 header		: HEADER REMOVE STRING	{
 			struct custom_header	*hdr;
 
@@ -753,7 +758,7 @@ header		: HEADER REMOVE STRING	{
 			hdr->flags = HEADER_REMOVE;
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
-		| HEADER ADD STRING STRING	{
+		| HEADER ADD STRING STRING optalways {
 			struct custom_header	*hdr;
 
 			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
@@ -779,38 +784,12 @@ header		: HEADER REMOVE STRING	{
 			free($4);
 
 			hdr->flags = HEADER_ADD;
+			if ($5)
+				hdr->flags |= HEADER_ALWAYS;
+
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
-		| HEADER ADD STRING STRING ALWAYS	{
-			struct custom_header	*hdr;
-
-			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
-				fatal("out of memory");
-
-			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
-			    sizeof(hdr->name)) {
-				yyerror("header name truncated");
-				free($3);
-				free($4);
-				free(hdr);
-				YYERROR;
-			}
-			free($3);
-
-			if (strlcpy(hdr->value, $4, sizeof(hdr->value)) >=
-			    sizeof(hdr->value)) {
-				yyerror("header value truncated");
-				free($4);
-				free(hdr);
-				YYERROR;
-			}
-			free($4);
-
-			hdr->flags = HEADER_ADD;
-			hdr->flags |= HEADER_ALWAYS;
-			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
-		}
-		| HEADER SET STRING STRING	{
+		| HEADER SET STRING STRING optalways {
 			struct custom_header	*hdr;
 
 			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
@@ -836,35 +815,8 @@ header		: HEADER REMOVE STRING	{
 			free($4);
 
 			hdr->flags = HEADER_SET;
-			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
-		}
-		| HEADER SET STRING STRING ALWAYS	{
-			struct custom_header	*hdr;
-
-			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
-				fatal("out of memory");
-
-			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
-			    sizeof(hdr->name)) {
-				yyerror("header name truncated");
-				free($3);
-				free($4);
-				free(hdr);
-				YYERROR;
-			}
-			free($3);
-
-			if (strlcpy(hdr->value, $4, sizeof(hdr->value)) >=
-			    sizeof(hdr->value)) {
-				yyerror("header value truncated");
-				free($4);
-				free(hdr);
-				YYERROR;
-			}
-			free($4);
-
-			hdr->flags = HEADER_SET;
-			hdr->flags |= HEADER_ALWAYS;
+			if ($5)
+				hdr->flags |= HEADER_ALWAYS;
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
 		;

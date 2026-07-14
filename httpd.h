@@ -67,6 +67,8 @@
 #define HTTPD_TLS_ECDHE_CURVES	"default"
 #define HTTPD_FCGI_NAME_MAX	511
 #define HTTPD_FCGI_VAL_MAX	511
+#define HTTPD_HEADER_NAME_MAX	127
+#define HTTPD_HEADER_VAL_MAX	511
 #define FD_RESERVE		5
 
 #define SERVER_MAX_CLIENTS	1024
@@ -411,6 +413,13 @@ enum log_format {
 	LOG_FORMAT_FORWARDED
 };
 
+enum header_fags {
+	HEADER_REMOVE,
+	HEADER_ADD,
+	HEADER_SET,
+	HEADER_ALWAYS
+};
+
 struct log_file {
 	char			log_name[PATH_MAX];
 	int			log_fd;
@@ -450,13 +459,9 @@ struct fastcgi_param {
 TAILQ_HEAD(server_fcgiparams, fastcgi_param);
 
 struct custom_header {
-	char			name[128];
-	char			value[512];
-	uint8_t			flags;
-#define HEADER_REMOVE		0x01
-#define HEADER_ADD		0x02
-#define HEADER_SET		0x04
-#define HEADER_ALWAYS		0x08
+	char			name[HTTPD_HEADER_NAME_MAX];
+	char			value[HTTPD_HEADER_VAL_MAX];
+	enum header_fags	flags;
 
 	TAILQ_ENTRY(custom_header) entry;
 };
