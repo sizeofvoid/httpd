@@ -272,7 +272,9 @@ config_setserver(struct httpd *env, struct server *srv)
 			/* Configure TLS if necessary. */
 			config_setserver_tls(env, srv);
 			/* Configure custom headers if necessary. */
-			config_setserver_headers(env, srv);
+			if (config_setserver_headers(env, srv) == -1)
+				return (-1);
+
 
 		} else if (id == PROC_SERVER &&
 			   (srv->srv_conf.flags & SRVFLAG_LOCATION)) {
@@ -288,7 +290,18 @@ config_setserver(struct httpd *env, struct server *srv)
 
 			/* Configure custom headers if necessary. */
 			config_inherit_headers(env, srv);
-			config_setserver_headers(env, srv);
+			if (config_setserver_headers(env, srv) == -1)
+				return (-1);
+		} else {
+			if (proc_composev(ps, id, IMSG_CFG_SERVER,
+			    iov, c) != 0) {
+				log_warn("%s: failed to compose "
+				    "IMSG_CFG_SERVER imsg for `%s'",
+				    __func__, srv->srv_conf.name);
+				return (-1);
+			}
+			/* Configure FCGI parameters if necessary. */
+			config_setserver_fcgiparams(env, srv);
 		}
 	}
 
@@ -515,6 +528,7 @@ config_inherit_headers(struct httpd *env, struct server *srv)
 	struct server		*parent_srv;
 	struct server_config	*srv_conf = &srv->srv_conf;
 	struct custom_header	*hdr, *hdr_copy;
+	struct server_headers	 inherited;
 
 	if (!(srv_conf->flags & SRVFLAG_LOCATION))
 		return;
@@ -527,6 +541,8 @@ config_inherit_headers(struct httpd *env, struct server *srv)
 
 	if (parent_srv == NULL)
 		return;
+
+	TAILQ_INIT(&inherited);
 
 	TAILQ_FOREACH(hdr, &parent_srv->srv_conf.headers, entry) {
 		if (config_header_exists(srv_conf, hdr->name)) {
@@ -541,16 +557,18 @@ config_inherit_headers(struct httpd *env, struct server *srv)
 			fatal("out of memory");
 
 		(void)strlcpy(hdr_copy->name, hdr->name,
-			    sizeof(hdr_copy->name));
+		    sizeof(hdr_copy->name));
 		(void)strlcpy(hdr_copy->value, hdr->value,
-			    sizeof(hdr_copy->value));
+		    sizeof(hdr_copy->value));
 		hdr_copy->flags = hdr->flags;
 
-		TAILQ_INSERT_TAIL(&srv_conf->headers, hdr_copy, entry);
+		TAILQ_INSERT_TAIL(&inherited, hdr_copy, entry);
 		DPRINTF("%s: inheriting header \"%s\" from parent \"%s\" "
 		    "to location \"%s\"", __func__, hdr->name,
 		    parent_srv->srv_conf.name, srv_conf->location);
 	}
+
+	TAILQ_CONCAT(&srv_conf->headers, &inherited, entry);
 }
 
 int
