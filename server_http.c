@@ -60,6 +60,7 @@ ssize_t		 server_create_builtin(struct server_config *, char **,
 		    unsigned int, const char *);
 char		*server_create_errdoc(struct server_config *, unsigned int,
 		    const char *);
+static char	*get_always_custom_headers(struct server_config *);
 
 static struct http_method	 http_methods[] = HTTP_METHODS;
 static struct http_error	 http_errors[] = HTTP_ERRORS;
@@ -896,6 +897,7 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 	char			 tmbuf[32], hbuf[128], *hstsheader = NULL;
 	char			*clenheader = NULL;
 	char			*bannerheader = NULL;
+	char			*customheaders = NULL;
 	char			 buf[IBUF_READ_SIZE];
 	char			*escapedmsg = NULL;
 	ssize_t			 bodylen;
@@ -1011,6 +1013,8 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 			goto done;
 		}
 
+	customheaders = get_always_custom_headers(srv_conf);
+
 	/* Add basic HTTP headers */
 	if ((httpmsglen = asprintf(&httpmsg,
 	    "HTTP/1.0 %03d %s\r\n"
@@ -1022,12 +1026,14 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 	    "%s"
 	    "%s"
 	    "\r\n"
+	    "%s"
 	    "%s",
 	    code, httperr, tmbuf,
 	    bannerheader == NULL ? "" : bannerheader,
 	    clenheader == NULL ? "" : clenheader,
 	    extraheader == NULL ? "" : extraheader,
 	    hstsheader == NULL ? "" : hstsheader,
+	    customheaders == NULL ? "" : customheaders,
 	    desc->http_method == HTTP_METHOD_HEAD || clenheader == NULL ?
 	    "" : body)) == -1)
 		goto done;
@@ -1049,6 +1055,7 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 	free(hstsheader);
 	free(clenheader);
 	free(bannerheader);
+	free(customheaders);
 	return;
 
  done:
@@ -1057,6 +1064,7 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 	free(hstsheader);
 	free(clenheader);
 	free(bannerheader);
+	free(customheaders);
 	if (msg == NULL)
 		msg = "\"\"";
 	if (asprintf(&httpmsg, "%s (%03d %s)", msg, code, httperr) == -1) {
@@ -1642,6 +1650,46 @@ server_custom_headers(struct server_config *srv_conf, struct kvtree *headers,
 		}
 	}
 	return (0);
+}
+
+/*
+ * Build a raw custom HTTP header that only includes headers marked as always
+ */
+char *
+get_always_custom_headers(struct server_config *srv_conf)
+{
+	struct custom_header *hdr;
+	char *headers = NULL;
+	char *tmp = NULL;
+
+	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
+		/*
+		 * XXX
+		 * only "header add ... always" here. set/remove ignored, may
+		 * duplicate -  unify with server_custom_headers() later
+		 */
+		if ((hdr->flags & HEADER_ALWAYS) && (hdr->flags & HEADER_ADD)) {
+			print_custom_header(__func__, hdr);
+
+			if (headers == NULL) {
+				if (asprintf(&headers, "%s: %s\r\n",
+				    hdr->name, hdr->value) == -1) {
+					return (NULL);
+				}
+			} else {
+				if (asprintf(&tmp, "%s%s: %s\r\n", headers,
+				    hdr->name, hdr->value) == -1) {
+					free(headers);
+					return (NULL);
+				}
+				free(headers);
+				headers = tmp;
+			}
+
+		}
+
+	}
+	return (headers);
 }
 
 int

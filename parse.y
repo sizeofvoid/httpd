@@ -798,7 +798,7 @@ header		: HEADER REMOVE STRING	{
 				hdr->flags |= HEADER_ALWAYS;
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
-		| HEADER SET STRING STRING optalways {
+		| HEADER SET STRING STRING {
 			struct custom_header	*hdr;
 			if (strlen($3) > HTTPD_HEADER_NAME_MAX - 1) {
 				yyerror("header name too long (max %d)",
@@ -831,8 +831,6 @@ header		: HEADER REMOVE STRING	{
 			free($4);
 
 			hdr->flags = HEADER_SET;
-			if ($5)
-				hdr->flags |= HEADER_ALWAYS;
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
 		;
