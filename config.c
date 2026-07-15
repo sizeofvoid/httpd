@@ -447,45 +447,41 @@ config_getserver_headers(struct httpd *env, struct imsg *imsg)
 {
 	struct server_config	*srv_conf;
 	struct custom_header	*hdr;
-	uint32_t		 id;
-	uint8_t			*p = imsg->data;
+	struct header_imsg	 hmsg;
+	struct ibuf		 ibuf;
 
-	if (IMSG_DATA_SIZE(imsg) != sizeof(id) + sizeof(*hdr)) {
-		log_debug("%s: invalid message length", __func__);
+	if (imsg_get_ibuf(imsg, &ibuf) == -1 ||
+	    ibuf_get(&ibuf, &hmsg, sizeof(hmsg)) == -1) {
+		log_debug("%s: invalid message", __func__);
 		return (-1);
 	}
 
-	memcpy(&id, p, sizeof(id));	/* server conf id */
-	p += sizeof(id);
-
-	if ((srv_conf = serverconfig_byid(id)) == NULL) {
+	if ((srv_conf = serverconfig_byid(hmsg.id)) == NULL) {
 		log_debug("%s: invalid config id", __func__);
+		return (-1);
+	}
+
+	if (hmsg.namelen > HTTPD_HEADER_NAME_MAX - 1 ||
+	    hmsg.vallen  > HTTPD_HEADER_VAL_MAX - 1) {
+		log_debug("%s: header too long", __func__);
 		return (-1);
 	}
 
 	if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
 		fatal("headers out of memory");
 
-	memcpy(hdr, p, sizeof(*hdr));
+	hdr->name  = ibuf_get_string(&ibuf, hmsg.namelen);
+	hdr->value = ibuf_get_string(&ibuf, hmsg.vallen);
+	if (hdr->name == NULL || hdr->value == NULL) {
+		free(hdr->name);
+		free(hdr->value);
+		free(hdr);
+		return (-1);
+	}
+	hdr->flags = hmsg.flags;
 
 	TAILQ_INSERT_TAIL(&srv_conf->headers, hdr, entry);
-
-#ifdef DEBUG
-	server_print_custom_header(__func__, hdr);
-#endif
-
-	return (0);
-}
-
-static int
-config_header_exists(struct server_config *srv_conf, const char *name)
-{
-	struct custom_header	*hdr;
-
-	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
-		if (strcasecmp(hdr->name, name) == 0)
-			return (1);
-	}
+	print_custom_header(__func__, hdr);
 	return (0);
 }
 
@@ -498,7 +494,7 @@ config_inherit_headers(struct httpd *env, struct server *srv)
 {
 	struct server		*parent_srv;
 	struct server_config	*srv_conf = &srv->srv_conf;
-	struct custom_header	*hdr, *hdr_copy;
+	struct custom_header	*hdr, *nhdr;
 	struct server_headers	 inherited;
 
 	if (!(srv_conf->flags & SRVFLAG_LOCATION))
@@ -516,24 +512,15 @@ config_inherit_headers(struct httpd *env, struct server *srv)
 	TAILQ_INIT(&inherited);
 
 	TAILQ_FOREACH(hdr, &parent_srv->srv_conf.headers, entry) {
-		if (config_header_exists(srv_conf, hdr->name)) {
+		if (header_exists(srv_conf, hdr->name)) {
 			DPRINTF("%s: skipping header \"%s\" from parent "
 			    "\"%s\", overridden in location \"%s\"",
 			    __func__, hdr->name,
 			    parent_srv->srv_conf.name, srv_conf->location);
 			continue;
 		}
-
-		if ((hdr_copy = calloc(1, sizeof(*hdr_copy))) == NULL)
-			fatal("out of memory");
-
-		(void)strlcpy(hdr_copy->name, hdr->name,
-		    sizeof(hdr_copy->name));
-		(void)strlcpy(hdr_copy->value, hdr->value,
-		    sizeof(hdr_copy->value));
-		hdr_copy->flags = hdr->flags;
-
-		TAILQ_INSERT_TAIL(&inherited, hdr_copy, entry);
+		nhdr = header_dup(hdr);
+		TAILQ_INSERT_TAIL(&inherited, nhdr, entry);
 		DPRINTF("%s: inheriting header \"%s\" from parent \"%s\" "
 		    "to location \"%s\"", __func__, hdr->name,
 		    parent_srv->srv_conf.name, srv_conf->location);
@@ -548,26 +535,33 @@ config_setserver_headers(struct httpd *env, struct server *srv)
 	struct privsep		*ps = env->sc_ps;
 	struct server_config	*srv_conf = &srv->srv_conf;
 	struct custom_header	*hdr;
-	struct iovec		 iov[2];
+	struct header_imsg	 hmsg;
+	struct iovec		 iov[3];
 
 	DPRINTF("%s: sending headers for \"%s[%u]\" to %s fd %d", __func__,
 	    srv_conf->name, srv_conf->id, ps->ps_title[PROC_SERVER],
 	    srv->srv_s);
 
 	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
-		iov[0].iov_base = &srv_conf->id;
-		iov[0].iov_len = sizeof(srv_conf->id);
-		iov[1].iov_base = hdr;
-		iov[1].iov_len = sizeof(*hdr);
+		hmsg.id      = srv_conf->id;
+		hmsg.flags   = hdr->flags;
+		hmsg.namelen = strlen(hdr->name);
+		hmsg.vallen  = strlen(hdr->value);
+
+		iov[0].iov_base = &hmsg;
+		iov[0].iov_len  = sizeof(hmsg);
+		iov[1].iov_base = hdr->name;
+		iov[1].iov_len  = hmsg.namelen;
+		iov[2].iov_base = hdr->value;
+		iov[2].iov_len  = hmsg.vallen;
 
 		if (proc_composev(ps, PROC_SERVER, IMSG_CFG_HEADERS,
-		    iov, 2) != 0) {
+		    iov, 3) != 0) {
 			log_warn("%s: failed to compose IMSG_CFG_HEADERS "
-			    "imsg for `%s'", __func__, srv_conf->name);
+			    "for `%s'", __func__, srv_conf->name);
 			return (-1);
 		}
 	}
-
 	return (0);
 }
 

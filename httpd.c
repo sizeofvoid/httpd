@@ -1239,3 +1239,44 @@ getmonotime(struct timeval *tv)
 
 	TIMESPEC_TO_TIMEVAL(tv, &ts);
 }
+
+void
+print_custom_header(const char *i, const struct custom_header *hdr)
+{
+	if (hdr == NULL) {
+		DPRINTF("%s: hdr=NULL", i);
+		return;
+	}
+	DPRINTF("%s: hdr (%s%s%s%s) %s: %s", i,
+	    (hdr->flags & HEADER_REMOVE) ? "remove " : "",
+	    (hdr->flags & HEADER_ADD)    ? "add "    : "",
+	    (hdr->flags & HEADER_SET)    ? "set "    : "",
+	    (hdr->flags & HEADER_ALWAYS) ? "always"  : "",
+	    hdr->name, hdr->value);
+}
+
+int
+header_exists(struct server_config *srv_conf, const char *name)
+{
+	struct custom_header	*hdr;
+
+	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
+		if (strcasecmp(hdr->name, name) == 0)
+			return (1);
+	}
+	return (0);
+}
+
+struct custom_header *
+header_dup(const struct custom_header *src)
+{
+	struct custom_header	*h;
+
+	if ((h = calloc(1, sizeof(*h))) == NULL)
+		fatal("out of memory");
+	if ((h->name = strdup(src->name)) == NULL ||
+	    (h->value = strdup(src->value)) == NULL)
+		fatal("out of memory");
+	h->flags = src->flags;
+	return (h);
+}

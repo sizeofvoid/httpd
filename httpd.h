@@ -420,6 +420,13 @@ enum header_flags {
 	HEADER_ALWAYS	= 0x08
 };
 
+struct header_imsg {
+	uint32_t	id;		/* server conf id */
+	uint32_t	flags;
+	uint16_t	namelen;
+	uint16_t	vallen;
+};
+
 struct log_file {
 	char			log_name[PATH_MAX];
 	int			log_fd;
@@ -459,9 +466,9 @@ struct fastcgi_param {
 TAILQ_HEAD(server_fcgiparams, fastcgi_param);
 
 struct custom_header {
-	char			name[HTTPD_HEADER_NAME_MAX];
-	char			value[HTTPD_HEADER_VAL_MAX];
-	enum header_flags	flags;
+	char			*name;
+	char			*value;
+	uint32_t		flags;
 
 	TAILQ_ENTRY(custom_header) entry;
 };
@@ -664,8 +671,6 @@ void	 server_read_http(struct bufferevent *, void *);
 void	 server_abort_http(struct client *, unsigned int, const char *);
 int	 server_custom_headers(struct server_config *, struct kvtree *,
 	    unsigned int);
-void	 server_print_custom_header(const char *,
-	    const struct custom_header *);
 unsigned int
 	 server_httpmethod_byname(const char *);
 const char
@@ -750,6 +755,12 @@ void		 auth_free(struct serverauth *, struct auth *);
 const char	*print_host(struct sockaddr_storage *, char *, size_t);
 const char	*printb_flags(const uint64_t, const char *);
 void		 getmonotime(struct timeval *);
+
+void		 print_custom_header(const char *,
+		    const struct custom_header *);
+int		 header_exists(struct server_config *, const char *);
+struct custom_header
+		*header_dup(const struct custom_header *);
 
 extern struct httpd *httpd_env;
 

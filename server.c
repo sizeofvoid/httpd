@@ -489,8 +489,11 @@ serverconfig_free(struct server_config *srv_conf)
 	TAILQ_FOREACH_SAFE(param, &srv_conf->fcgiparams, entry, tparam)
 		free(param);
 
-	TAILQ_FOREACH_SAFE(hdr, &srv_conf->headers, entry, thdr)
+	TAILQ_FOREACH_SAFE(hdr, &srv_conf->headers, entry, thdr) {
+		free(hdr->name);
+		free(hdr->value);
 		free(hdr);
+	}
 }
 
 void

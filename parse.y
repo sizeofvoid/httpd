@@ -737,28 +737,29 @@ optalways	:
 header		: HEADER REMOVE STRING	{
 			struct custom_header	*hdr;
 
+			if (strlen($3) > HTTPD_HEADER_NAME_MAX - 1) {
+				yyerror("header name too long (max %d)",
+				    HTTPD_HEADER_NAME_MAX - 1);
+				free($3);
+				YYERROR;
+			}
+			if (strcmp("Server", $3) == 0) {
+				yyerror("'header remove Server' ignored, "
+				    "use 'no banner'");
+				free($3);
+				YYERROR;
+			}
+			if (header_name_forbidden($3)) {
+				yyerror("invalid character in header name");
+				free($3);
+				YYERROR;
+			}
+
 			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
 				fatal("out of memory");
-
-			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
-			    sizeof(hdr->name)) {
-				yyerror("header name truncated");
-				free($3);
-				free(hdr);
-				YYERROR;
-			}
-			if (strcmp("Server", hdr->name) == 0) {
-				yyerror("'header remove Server' "
-					"ignored, use 'no banner'");
-				free($3);
-				free(hdr);
-				YYERROR;
-			}
-			if (header_name_forbidden(hdr->name)) {
-				free($3);
-				free(hdr);
-				YYERROR;
-			}
+			if ((hdr->name = strdup($3)) == NULL ||
+			    (hdr->value = strdup("")) == NULL)	/* never NULL */
+				fatal("out of memory");
 			free($3);
 
 			hdr->flags = HEADER_REMOVE;
@@ -767,69 +768,70 @@ header		: HEADER REMOVE STRING	{
 		| HEADER ADD STRING STRING optalways {
 			struct custom_header	*hdr;
 
+			if (strlen($3) > HTTPD_HEADER_NAME_MAX - 1) {
+				yyerror("header name too long (max %d)",
+				    HTTPD_HEADER_NAME_MAX - 1);
+				free($3);
+				free($4);
+				YYERROR;
+			}
+			if (header_name_forbidden($3)) {
+				yyerror("invalid character in header name");
+				free($3);
+				free($4);
+				YYERROR;
+			}
+			if (strlen($4) > HTTPD_HEADER_VAL_MAX - 1) {
+				yyerror("header value too long (max %d)",
+				    HTTPD_HEADER_VAL_MAX - 1);
+				free($3);
+				free($4);
+				YYERROR;
+			}
+
 			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
 				fatal("out of memory");
 
-			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
-			    sizeof(hdr->name)) {
-				yyerror("header name truncated");
-				free($3);
-				free($4);
-				free(hdr);
-				YYERROR;
-			}
-			if (header_name_forbidden(hdr->name)) {
-				free($3);
-				free($4);
-				free(hdr);
-				YYERROR;
-			}
-			free($3);
+			if ((hdr->name = strdup($3)) == NULL ||
+			    (hdr->value = strdup($4)) == NULL)
+				fatal("out of memory");
 
-			if (strlcpy(hdr->value, $4, sizeof(hdr->value)) >=
-			    sizeof(hdr->value)) {
-				yyerror("header value truncated");
-				free($4);
-				free(hdr);
-				YYERROR;
-			}
+			free($3);
 			free($4);
 
 			hdr->flags = HEADER_ADD;
 			if ($5)
 				hdr->flags |= HEADER_ALWAYS;
-
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
 		| HEADER SET STRING STRING optalways {
 			struct custom_header	*hdr;
+			if (strlen($3) > HTTPD_HEADER_NAME_MAX - 1) {
+				yyerror("header name too long (max %d)",
+				    HTTPD_HEADER_NAME_MAX - 1);
+			free($3);
+			free($4);
+			YYERROR;
+			}
+			if (header_name_forbidden($3)) {
+				yyerror("invalid character in header name");
+				free($3);
+				free($4);
+				YYERROR;
+			}
+			if (strlen($4) > HTTPD_HEADER_VAL_MAX - 1) {
+				yyerror("header value too long (max %d)",
+				    HTTPD_HEADER_VAL_MAX - 1);
+				free($3); free($4);
+				YYERROR;
+			}
 
 			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
 				fatal("out of memory");
-
-			if (strlcpy(hdr->name, $3, sizeof(hdr->name)) >=
-			    sizeof(hdr->name)) {
-				yyerror("header name truncated");
-				free($3);
-				free($4);
-				free(hdr);
-				YYERROR;
-			}
-			if (header_name_forbidden(hdr->name)) {
-				free($3);
-				free($4);
-				free(hdr);
-				YYERROR;
-			}
+			if ((hdr->name = strdup($3)) == NULL ||
+			    (hdr->value = strdup($4)) == NULL)
+				fatal("out of memory");
 			free($3);
-
-			if (strlcpy(hdr->value, $4, sizeof(hdr->value)) >=
-			    sizeof(hdr->value)) {
-				yyerror("header value truncated");
-				free($4);
-				free(hdr);
-				YYERROR;
-			}
 			free($4);
 
 			hdr->flags = HEADER_SET;
@@ -2479,11 +2481,7 @@ server_inherit(struct server *src, struct server_config *alias,
 
 	TAILQ_INIT(&dst->srv_conf.headers);
 	TAILQ_FOREACH(hdr, &src->srv_conf.headers, entry) {
-		if ((nhdr = calloc(1, sizeof(*nhdr))) == NULL)
-			fatal("out of memory");
-		strlcpy(nhdr->name, hdr->name, sizeof(nhdr->name));
-		strlcpy(nhdr->value, hdr->value, sizeof(nhdr->value));
-		nhdr->flags = hdr->flags;
+		nhdr = header_dup(hdr);
 		TAILQ_INSERT_TAIL(&dst->srv_conf.headers, nhdr, entry);
 	}
 
@@ -2580,11 +2578,7 @@ server_inherit(struct server *src, struct server_config *alias,
 		/* Copy custom headers from source location */
 		TAILQ_INIT(&dstl->srv_conf.headers);
 		TAILQ_FOREACH(hdr, &s->srv_conf.headers, entry) {
-			if ((nhdr = calloc(1, sizeof(*nhdr))) == NULL)
-				fatal("out of memory");
-			strlcpy(nhdr->name, hdr->name, sizeof(nhdr->name));
-			strlcpy(nhdr->value, hdr->value, sizeof(nhdr->value));
-			nhdr->flags = hdr->flags;
+			nhdr = header_dup(hdr);
 			TAILQ_INSERT_TAIL(&dstl->srv_conf.headers, nhdr, entry);
 		}
 
