@@ -1670,7 +1670,6 @@ get_always_custom_headers(struct server_config *srv_conf)
 		 */
 		if ((hdr->flags & HEADER_ALWAYS) && (hdr->flags & HEADER_ADD)) {
 			print_custom_header(__func__, hdr);
-
 			if (headers == NULL) {
 				if (asprintf(&headers, "%s: %s\r\n",
 				    hdr->name, hdr->value) == -1) {
@@ -1685,7 +1684,6 @@ get_always_custom_headers(struct server_config *srv_conf)
 				free(headers);
 				headers = tmp;
 			}
-
 		}
 
 	}

@@ -982,8 +982,8 @@ server "example.com" {
 
 	header set "X-Powered-By" "OpenBSD httpd"
 
-	header set "X-Content-Type-Options" "nosniff" always
-	header set "X-Frame-Options" "DENY" always
+	header set "X-Content-Type-Options" "nosniff"
+	header set "X-Frame-Options" "DENY"
 
 	header add "Set-Cookie" "id=23; HttpOnly; Secure"
 
