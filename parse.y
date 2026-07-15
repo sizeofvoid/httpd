@@ -743,20 +743,15 @@ header		: HEADER REMOVE STRING	{
 				free($3);
 				YYERROR;
 			}
-			if (strcmp("Server", $3) == 0) {
-				yyerror("'header remove Server' ignored, "
-				    "use 'no banner'");
-				free($3);
-				YYERROR;
-			}
+
 			if (header_name_forbidden($3)) {
-				yyerror("invalid character in header name");
 				free($3);
 				YYERROR;
 			}
 
 			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
 				fatal("out of memory");
+
 			if ((hdr->name = strdup($3)) == NULL ||
 			    (hdr->value = strdup("")) == NULL)	/* never NULL */
 				fatal("out of memory");
@@ -776,7 +771,6 @@ header		: HEADER REMOVE STRING	{
 				YYERROR;
 			}
 			if (header_name_forbidden($3)) {
-				yyerror("invalid character in header name");
 				free($3);
 				free($4);
 				YYERROR;
@@ -809,12 +803,11 @@ header		: HEADER REMOVE STRING	{
 			if (strlen($3) > HTTPD_HEADER_NAME_MAX - 1) {
 				yyerror("header name too long (max %d)",
 				    HTTPD_HEADER_NAME_MAX - 1);
-			free($3);
-			free($4);
-			YYERROR;
+				free($3);
+				free($4);
+				YYERROR;
 			}
 			if (header_name_forbidden($3)) {
-				yyerror("invalid character in header name");
 				free($3);
 				free($4);
 				YYERROR;
@@ -822,15 +815,18 @@ header		: HEADER REMOVE STRING	{
 			if (strlen($4) > HTTPD_HEADER_VAL_MAX - 1) {
 				yyerror("header value too long (max %d)",
 				    HTTPD_HEADER_VAL_MAX - 1);
-				free($3); free($4);
+				free($3);
+				free($4);
 				YYERROR;
 			}
 
 			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
 				fatal("out of memory");
+
 			if ((hdr->name = strdup($3)) == NULL ||
 			    (hdr->value = strdup($4)) == NULL)
 				fatal("out of memory");
+
 			free($3);
 			free($4);
 
@@ -2461,6 +2457,12 @@ header_name_forbidden(const char *name)
 	    strcasecmp(name, "Date") == 0) {
 		yyerror("header \"%s\" is reserved and cannot be "
 		    "set from httpd.conf, ignored", name);
+		return (1);
+	}
+
+	if (strcasecmp(name, "Server") == 0) {
+		yyerror("header \"Server\" cannot be configured here, "
+		    "use 'no banner' instead");
 		return (1);
 	}
 	return (0);

@@ -1641,7 +1641,7 @@ server_custom_headers(struct server_config *srv_conf, struct kvtree *headers,
 				return (-1);
 		}
 	}
-	return(0);
+	return (0);
 }
 
 int
