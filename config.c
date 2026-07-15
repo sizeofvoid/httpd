@@ -271,27 +271,6 @@ config_setserver(struct httpd *env, struct server *srv)
 			}
 			/* Configure TLS if necessary. */
 			config_setserver_tls(env, srv);
-			/* Configure custom headers if necessary. */
-			if (config_setserver_headers(env, srv) == -1)
-				return (-1);
-
-
-		} else if (id == PROC_SERVER &&
-			   (srv->srv_conf.flags & SRVFLAG_LOCATION)) {
-			if (proc_composev(ps, id, IMSG_CFG_SERVER,
-			    iov, c) != 0) {
-				log_warn("%s: failed to compose "
-				    "IMSG_CFG_SERVER imsg for `%s'",
-				    __func__, srv->srv_conf.name);
-				return (-1);
-			}
-			/* Configure FCGI parameters if necessary. */
-			config_setserver_fcgiparams(env, srv);
-
-			/* Configure custom headers if necessary. */
-			config_inherit_headers(env, srv);
-			if (config_setserver_headers(env, srv) == -1)
-				return (-1);
 		} else {
 			if (proc_composev(ps, id, IMSG_CFG_SERVER,
 			    iov, c) != 0) {
@@ -300,6 +279,7 @@ config_setserver(struct httpd *env, struct server *srv)
 				    __func__, srv->srv_conf.name);
 				return (-1);
 			}
+
 			/* Configure FCGI parameters if necessary. */
 			config_setserver_fcgiparams(env, srv);
 		}
@@ -313,6 +293,10 @@ config_setserver(struct httpd *env, struct server *srv)
 
 	/* Configure FCGI parameters if necessary. */
 	if (config_setserver_fcgiparams(env, srv) != 0)
+
+	/* Configure custom headers if necessary. */
+	config_inherit_headers(env, srv);
+	if (config_setserver_headers(env, srv) == -1)
 		return (-1);
 
 	/* Close server socket early to prevent fd exhaustion in the parent. */
