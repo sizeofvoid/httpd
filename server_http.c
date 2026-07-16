@@ -903,7 +903,7 @@ server_abort_http(struct client *clt, unsigned int code, const char *msg)
 	ssize_t			 bodylen;
 	ssize_t			 httpmsglen;
 	struct kvtree		 http_headers;
-	int			has_body, ret;
+	int			 has_body, ret;
 
 	RB_INIT(&http_headers);
 
