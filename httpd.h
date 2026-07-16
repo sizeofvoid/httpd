@@ -725,7 +725,7 @@ struct in6_addr *prefixlen2mask6(uint8_t, uint32_t *);
 uint32_t	 prefixlen2mask(uint8_t);
 int		 accept_reserve(int, struct sockaddr *, socklen_t *, int,
 		    volatile int *);
-struct kv	*kv_add(struct kvtree *, char *, char *);
+struct kv	*kv_add(struct kvtree *, const char *, const char *);
 int		 kv_set(struct kv *, char *, ...)
 		    __attribute__((__format__ (printf, 2, 3)));
 int		 kv_setkey(struct kv *, char *, ...)

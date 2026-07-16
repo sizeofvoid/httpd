@@ -922,7 +922,7 @@ accept_reserve(int sockfd, struct sockaddr *addr, socklen_t *addrlen,
 }
 
 struct kv *
-kv_add(struct kvtree *keys, char *key, char *value)
+kv_add(struct kvtree *keys, const char *key, const char *value)
 {
 	struct kv	*kv, *oldkv;
 

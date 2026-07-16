@@ -492,7 +492,7 @@ Multiple
 statements may be specified.
 Valid options are:
 .Bl -tag -width Ds
-.It Ic set Ar name Ar value
+.It Ic set Ar name Ar value Op Ic always
 Set a custom HTTP response header with the specified
 .Ar name
 and
@@ -514,7 +514,7 @@ this option appends the header even if one with the same
 already exists, allowing for multiple headers with the same name.
 The header is added to successful responses
 (2xx and 3xx status codes) by default.
-.It Ic remove Ar name
+.It Ic remove Ar name Op Ic always
 Suppress the HTTP response header with the specified
 .Ar name .
 This can be used to remove headers added by default, such as
@@ -526,12 +526,6 @@ If
 .Ic always
 is specified, the header is also added to error responses (4xx and
 5xx).
-On responses generated internally, such as error pages and
-.Ic block return
-redirects, the header is always appended, so
-.Ic always
-may produce a duplicate header.
-Use it with care.
 .Pp
 Header names are limited to 256 characters and values to 8192 characters.
 Headers defined in a
@@ -981,8 +975,8 @@ server "example.com" {
 
 	header set "X-Powered-By" "OpenBSD httpd"
 
-	header add "X-Content-Type-Options" "nosniff" always
-	header add "X-Frame-Options" "DENY" always
+	header set "X-Content-Type-Options" "nosniff" always
+	header set "X-Frame-Options" "DENY" always
 
 	header add "Set-Cookie" "id=23; HttpOnly; Secure"
 
