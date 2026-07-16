@@ -657,6 +657,7 @@ serveroptsl	: LISTEN ON STRING opttls port	{
 			srv = s;
 			srv_conf = &srv->srv_conf;
 			SPLAY_INIT(&srv->srv_clients);
+			TAILQ_INIT(&srv_conf->fcgiparams);
 		} '{' optnl serveropts_l '}'	{
 			struct server	*s = NULL;
 			uint64_t	 f;
@@ -810,32 +811,37 @@ fcgiflags	: SOCKET STRING {
 		| PARAM STRING STRING	{
 			struct fastcgi_param	*param;
 
+			if (strlen($2) > HTTPD_FCGI_NAME_MAX - 1) {
+				yyerror("fastcgi param name too long (max %d)",
+				    HTTPD_FCGI_NAME_MAX - 1);
+				free($2);
+				free($3);
+				YYERROR;
+			}
+
+			if (strlen($3) > HTTPD_FCGI_VAL_MAX - 1) {
+				yyerror("fastcgi param value too long (max %d)",
+				    HTTPD_FCGI_VAL_MAX - 1);
+				free($2);
+				free($3);
+				YYERROR;
+			}
+
 			if ((param = calloc(1, sizeof(*param))) == NULL)
 				fatal("out of memory");
 
-			if (strlcpy(param->name, $2, sizeof(param->name)) >=
-			    sizeof(param->name)) {
-				yyerror("fastcgi_param name truncated");
-				free($2);
-				free($3);
-				free(param);
-				YYERROR;
-			}
-			if (strlcpy(param->value, $3, sizeof(param->value)) >=
-			    sizeof(param->value)) {
-				yyerror("fastcgi_param value truncated");
-				free($2);
-				free($3);
-				free(param);
-				YYERROR;
-			}
+			if ((param->name = strdup($2)) == NULL ||
+			    (param->value = strdup($3)) == NULL)
+				fatal("out of memory");
+
 			free($2);
 			free($3);
 
 			DPRINTF("[%s,%s,%d]: adding param \"%s\" value \"%s\"",
 			    srv_conf->location, srv_conf->name, srv_conf->id,
 			    param->name, param->value);
-			TAILQ_INSERT_HEAD(&srv_conf->fcgiparams, param, entry);
+
+			TAILQ_INSERT_TAIL(&srv_conf->fcgiparams, param, entry);
 		}
 		| STRIP NUMBER			{
 			if ($2 < 0 || $2 > INT_MAX) {
