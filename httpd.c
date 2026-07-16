@@ -1249,9 +1249,9 @@ print_custom_header(const char *i, const struct custom_header *hdr)
 	}
 	DPRINTF("%s: hdr (%s%s%s%s) %s: %s", i,
 	    (hdr->flags & HEADER_REMOVE) ? "remove " : "",
-	    (hdr->flags & HEADER_ADD)    ? "add "    : "",
-	    (hdr->flags & HEADER_SET)    ? "set "    : "",
-	    (hdr->flags & HEADER_ALWAYS) ? "always"  : "",
+	    (hdr->flags & HEADER_ADD) ? "add " : "",
+	    (hdr->flags & HEADER_SET) ? "set " : "",
+	    (hdr->flags & HEADER_ALWAYS) ? "always" : "",
 	    hdr->name, hdr->value);
 }
 

@@ -462,7 +462,7 @@ config_getserver_headers(struct httpd *env, struct imsg *imsg)
 	}
 
 	if (hmsg.namelen > HTTPD_HEADER_NAME_MAX - 1 ||
-	    hmsg.vallen  > HTTPD_HEADER_VAL_MAX - 1) {
+	    hmsg.vallen > HTTPD_HEADER_VAL_MAX - 1) {
 		log_debug("%s: header too long", __func__);
 		return (-1);
 	}
@@ -470,7 +470,7 @@ config_getserver_headers(struct httpd *env, struct imsg *imsg)
 	if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
 		fatal("headers out of memory");
 
-	hdr->name  = ibuf_get_string(&ibuf, hmsg.namelen);
+	hdr->name = ibuf_get_string(&ibuf, hmsg.namelen);
 	hdr->value = ibuf_get_string(&ibuf, hmsg.vallen);
 	if (hdr->name == NULL || hdr->value == NULL) {
 		free(hdr->name);
@@ -543,17 +543,17 @@ config_setserver_headers(struct httpd *env, struct server *srv)
 	    srv->srv_s);
 
 	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
-		hmsg.id      = srv_conf->id;
-		hmsg.flags   = hdr->flags;
+		hmsg.id = srv_conf->id;
+		hmsg.flags = hdr->flags;
 		hmsg.namelen = strlen(hdr->name);
-		hmsg.vallen  = strlen(hdr->value);
+		hmsg.vallen = strlen(hdr->value);
 
 		iov[0].iov_base = &hmsg;
-		iov[0].iov_len  = sizeof(hmsg);
+		iov[0].iov_len = sizeof(hmsg);
 		iov[1].iov_base = hdr->name;
-		iov[1].iov_len  = hmsg.namelen;
+		iov[1].iov_len = hmsg.namelen;
 		iov[2].iov_base = hdr->value;
-		iov[2].iov_len  = hmsg.vallen;
+		iov[2].iov_len = hmsg.vallen;
 
 		if (proc_composev(ps, PROC_SERVER, IMSG_CFG_HEADERS,
 		    iov, 3) != 0) {
