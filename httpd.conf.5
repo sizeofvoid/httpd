@@ -541,7 +541,6 @@ block are inherited from the
 context and override defined headers with the same name.
 If you do not wish to inherit these, you can remove them again with
 .Ic remove .
-
 .It Ic hsts Oo Ar option Oc
 Enable HTTP Strict Transport Security.
 Valid options are:
@@ -982,8 +981,8 @@ server "example.com" {
 
 	header set "X-Powered-By" "OpenBSD httpd"
 
-	header set "X-Content-Type-Options" "nosniff"
-	header set "X-Frame-Options" "DENY"
+	header add "X-Content-Type-Options" "nosniff" always
+	header add "X-Frame-Options" "DENY" always
 
 	header add "Set-Cookie" "id=23; HttpOnly; Secure"
 

@@ -1653,7 +1653,8 @@ server_custom_headers(struct server_config *srv_conf, struct kvtree *headers,
 }
 
 /*
- * Build a raw custom HTTP header that only includes headers marked as always
+ * Build a raw custom HTTP header that only includes headers marked as add and
+ * always
  */
 char *
 get_always_custom_headers(struct server_config *srv_conf)
@@ -1666,7 +1667,7 @@ get_always_custom_headers(struct server_config *srv_conf)
 		/*
 		 * XXX
 		 * only "header add ... always" here. set/remove ignored, may
-		 * duplicate -  unify with server_custom_headers() later
+		 * duplicate. Unify with server_custom_headers() later
 		 */
 		if ((hdr->flags & HEADER_ALWAYS) && (hdr->flags & HEADER_ADD)) {
 			print_custom_header(__func__, hdr);
@@ -1685,7 +1686,6 @@ get_always_custom_headers(struct server_config *srv_conf)
 				headers = tmp;
 			}
 		}
-
 	}
 	return (headers);
 }

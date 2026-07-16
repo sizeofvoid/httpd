@@ -760,7 +760,7 @@ header		: HEADER REMOVE STRING	{
 			hdr->flags = HEADER_REMOVE;
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
-		| HEADER ADD STRING STRING optalways {
+		| HEADER ADD STRING STRING optalways	{
 			struct custom_header	*hdr;
 
 			if (strlen($3) > HTTPD_HEADER_NAME_MAX - 1) {
@@ -798,8 +798,9 @@ header		: HEADER REMOVE STRING	{
 				hdr->flags |= HEADER_ALWAYS;
 			TAILQ_INSERT_TAIL(&srv->srv_conf.headers, hdr, entry);
 		}
-		| HEADER SET STRING STRING {
+		| HEADER SET STRING STRING	{
 			struct custom_header	*hdr;
+
 			if (strlen($3) > HTTPD_HEADER_NAME_MAX - 1) {
 				yyerror("header name too long (max %d)",
 				    HTTPD_HEADER_NAME_MAX - 1);
@@ -2453,8 +2454,7 @@ header_name_forbidden(const char *name)
 	    strcasecmp(name, "Transfer-Encoding") == 0 ||
 	    strcasecmp(name, "Connection") == 0 ||
 	    strcasecmp(name, "Date") == 0) {
-		yyerror("header \"%s\" is reserved and cannot be "
-		    "set from httpd.conf, ignored", name);
+		yyerror("header \"%s\" is reserved and cannot be used", name);
 		return (1);
 	}
 
