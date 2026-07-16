@@ -413,12 +413,10 @@ enum log_format {
 	LOG_FORMAT_FORWARDED
 };
 
-enum header_flags {
-	HEADER_REMOVE	= 0x01,
-	HEADER_ADD	= 0x02,
-	HEADER_SET	= 0x04,
-	HEADER_ALWAYS	= 0x08
-};
+#define HEADER_REMOVE		0x01
+#define HEADER_ADD		0x02
+#define HEADER_SET		0x04
+#define HEADER_ALWAYS		0x08
 
 struct header_imsg {
 	uint32_t	id;		/* server conf id */
