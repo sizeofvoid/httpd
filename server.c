@@ -483,8 +483,11 @@ serverconfig_free(struct server_config *srv_conf)
 	freezero(srv_conf->tls_cert, srv_conf->tls_cert_len);
 	freezero(srv_conf->tls_key, srv_conf->tls_key_len);
 
-	TAILQ_FOREACH_SAFE(param, &srv_conf->fcgiparams, entry, tparam)
+	TAILQ_FOREACH_SAFE(param, &srv_conf->fcgiparams, entry, tparam) {
+		free(param->name);
+		free(param->value);
 		free(param);
+	}
 }
 
 void
