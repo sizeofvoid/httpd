@@ -1372,7 +1372,8 @@ server_dispatch_parent(int fd, struct privsep_proc *p, struct imsg *imsg)
 			return (-1);
 		break;
 	case IMSG_CFG_HEADERS:
-		config_getserver_headers(httpd_env, imsg);
+		if (config_getserver_headers(httpd_env, imsg) != 0)
+			return (-1);
 		break;
 	case IMSG_CFG_DONE:
 		if (config_getcfg(httpd_env, imsg) != 0)
