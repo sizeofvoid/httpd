@@ -269,8 +269,6 @@ config_setserver(struct httpd *env, struct server *srv)
 					return (-1);
 				}
 			}
-			/* Configure TLS if necessary. */
-			config_setserver_tls(env, srv);
 		} else {
 			if (proc_composev(ps, id, IMSG_CFG_SERVER,
 			    iov, c) != 0) {
@@ -279,9 +277,6 @@ config_setserver(struct httpd *env, struct server *srv)
 				    __func__, srv->srv_conf.name);
 				return (-1);
 			}
-
-			/* Configure FCGI parameters if necessary. */
-			config_setserver_fcgiparams(env, srv);
 		}
 	}
 
@@ -378,8 +373,12 @@ config_getserver_fcgiparams(struct httpd *env, struct imsg *imsg)
 	p += sizeof(nc);
 
 	memcpy(&id, p, sizeof(id));	/* server conf id */
-	srv_conf = serverconfig_byid(id);
 	p += sizeof(id);
+
+	if ((srv_conf = serverconfig_byid(id)) == NULL) {
+		log_debug("%s: server not found", __func__);
+		return(-1);
+	}
 
 	len += nc*sizeof(*fp);
 	if (IMSG_DATA_SIZE(imsg) < len) {
