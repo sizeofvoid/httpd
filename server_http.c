@@ -1619,7 +1619,7 @@ server_custom_headers(struct server_config *srv_conf, struct kvtree *headers,
 	struct kv		*kv, search;
 
 	TAILQ_FOREACH(hdr, &srv_conf->headers, entry) {
-		/* Only include headers not marked ALWAYS on success. */
+		/* Skip headers not marked ALWAYS on error responses. */
 		if (!(hdr->flags & HEADER_ALWAYS) && !http_is_success(code)) {
 			print_custom_header("skip", hdr);
 			continue;

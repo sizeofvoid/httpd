@@ -752,10 +752,9 @@ header		: HEADER REMOVE STRING optalways	{
 			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
 				fatal("out of memory");
 
-			if ((hdr->name = strdup($3)) == NULL ||
-			    (hdr->value = strdup("")) == NULL)	/* never NULL */
+			hdr->name = $3;
+			if ((hdr->value = strdup("")) == NULL)	/* never NULL */
 				fatal("out of memory");
-			free($3);
 
 			hdr->flags = HEADER_REMOVE;
 			if ($4)
@@ -788,12 +787,8 @@ header		: HEADER REMOVE STRING optalways	{
 			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
 				fatal("out of memory");
 
-			if ((hdr->name = strdup($3)) == NULL ||
-			    (hdr->value = strdup($4)) == NULL)
-				fatal("out of memory");
-
-			free($3);
-			free($4);
+			hdr->name = $3;
+			hdr->value = $4;
 
 			hdr->flags = HEADER_ADD;
 			if ($5)
@@ -826,12 +821,8 @@ header		: HEADER REMOVE STRING optalways	{
 			if ((hdr = calloc(1, sizeof(*hdr))) == NULL)
 				fatal("out of memory");
 
-			if ((hdr->name = strdup($3)) == NULL ||
-			    (hdr->value = strdup($4)) == NULL)
-				fatal("out of memory");
-
-			free($3);
-			free($4);
+			hdr->name = $3;
+			hdr->value = $4;
 
 			hdr->flags = HEADER_SET;
 			if ($5)
@@ -2454,6 +2445,11 @@ host(const char *s, struct addresslist *al, int max,
 int
 header_name_forbidden(const char *name)
 {
+	if (*name == '\0') {
+		yyerror("empty header name");
+		return (1);
+	}
+
 	if (strcasecmp(name, "Content-Length") == 0 ||
 	    strcasecmp(name, "Transfer-Encoding") == 0 ||
 	    strcasecmp(name, "Connection") == 0 ||

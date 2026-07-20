@@ -627,6 +627,7 @@ void	 server_generate_ticket_key(struct server_config *);
 int	 server_privinit(struct server *);
 void	 server_purge(struct server *);
 void	 serverconfig_free(struct server_config *);
+void	 server_headers_free(struct server_headers *);
 void	 serverconfig_reset(struct server_config *);
 int	 server_socket_af(struct sockaddr_storage *, in_port_t);
 in_port_t

@@ -462,6 +462,7 @@ server_purge(struct server *srv)
 		}
 	}
 
+	server_headers_free(&srv->srv_conf.headers);
 	tls_config_free(srv->srv_tls_config);
 	tls_free(srv->srv_tls_ctx);
 
@@ -469,10 +470,21 @@ server_purge(struct server *srv)
 }
 
 void
+server_headers_free(struct server_headers *headers)
+{
+	struct custom_header	*hdr, *thdr;
+
+	TAILQ_FOREACH_SAFE(hdr, headers, entry, thdr) {
+		free(hdr->name);
+		free(hdr->value);
+		free(hdr);
+	}
+}
+
+void
 serverconfig_free(struct server_config *srv_conf)
 {
 	struct fastcgi_param	*param, *tparam;
-	struct custom_header	*hdr, *thdr;
 
 	free(srv_conf->return_uri);
 	free(srv_conf->tls_ca_file);
@@ -489,11 +501,7 @@ serverconfig_free(struct server_config *srv_conf)
 	TAILQ_FOREACH_SAFE(param, &srv_conf->fcgiparams, entry, tparam)
 		free(param);
 
-	TAILQ_FOREACH_SAFE(hdr, &srv_conf->headers, entry, thdr) {
-		free(hdr->name);
-		free(hdr->value);
-		free(hdr);
-	}
+	server_headers_free(&srv_conf->headers);
 }
 
 void
