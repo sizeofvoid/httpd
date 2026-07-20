@@ -288,6 +288,7 @@ config_setserver(struct httpd *env, struct server *srv)
 
 	/* Configure FCGI parameters if necessary. */
 	if (config_setserver_fcgiparams(env, srv) != 0)
+		return (-1);
 
 	/* Configure custom headers if necessary. */
 	config_inherit_headers(env, srv);
