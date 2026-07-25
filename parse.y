@@ -57,6 +57,8 @@
 #include "http.h"
 #include "log.h"
 
+#define TOKEN_STRING_MAX 16384
+
 TAILQ_HEAD(files, file)		 files = TAILQ_HEAD_INITIALIZER(files);
 static struct file {
 	TAILQ_ENTRY(file)	 entry;
@@ -1682,7 +1684,7 @@ findeol(void)
 int
 yylex(void)
 {
-	char	 buf[8096];
+	char	 buf[TOKEN_STRING_MAX];
 	char	*p, *val;
 	int	 quotec, next, c;
 	int	 token;
