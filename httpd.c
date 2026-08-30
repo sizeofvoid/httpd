@@ -430,8 +430,8 @@ parent_dispatch_logger(int fd, struct privsep_proc *p, struct imsg *imsg)
 
 	switch (imsg->hdr.type) {
 	case IMSG_CTL_RESET:
-		IMSG_SIZE_CHECK(imsg, &v);
-		memcpy(&v, imsg->data, sizeof(v));
+		if (imsg_get_data(imsg, &v, sizeof(v)) == -1)
+			fatalx("%s: imsg_get_data", __func__);
 		parent_reload(env, v, NULL);
 		break;
 	case IMSG_CTL_RELOAD:
