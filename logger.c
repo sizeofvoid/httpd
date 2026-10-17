@@ -139,20 +139,23 @@ logger_open_fd(struct imsg *imsg)
 {
 	struct log_file		*log;
 	uint32_t		 id;
+	int			 fd;
 
 	if (imsg_get_data(imsg, &id, sizeof(id)) == -1)
 		fatalx("%s: imsg_get_data", __func__);
 
+	if ((fd = imsg_get_fd(imsg)) == -1)
+		fatalx("%s: no fd for log id %u", __func__, id);
+
 	TAILQ_FOREACH(log, &log_files, log_entry) {
 		if (log->log_id == id) {
-			log->log_fd = imsg_get_fd(imsg);
-			DPRINTF("%s: received log fd %d, file %s",
-			    __func__, log->log_fd, log->log_name);
+			log->log_fd = fd;
 			return (0);
 		}
 	}
-
-	return (-1);
+	log_warnx("%s: unknown log id %u", __func__, id);
+	close(fd);
+	return (0);
 }
 
 int
