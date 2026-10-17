@@ -165,7 +165,6 @@ struct imsgev {
 };
 
 #define IMSG_DATA_SIZE(imsg)	((imsg)->hdr.len - IMSG_HEADER_SIZE)
-#define MAX_IMSG_DATA_SIZE	(MAX_IMSGSIZE - IMSG_HEADER_SIZE)
 
 enum imsg_type {
 	IMSG_NONE,
