@@ -289,6 +289,8 @@ logger_log(struct imsg *imsg)
 
 	/* XXX get_string() would sanitize the string, but add a malloc */
 	logline = ibuf_data(&ibuf);
+	if (ibuf_size(&ibuf) == 0 || logline[ibuf_size(&ibuf) - 1] != '\0')
+		fatalx("%s: invalid log line", __func__);
 
 	/* For debug output */
 	log_debug("%s", logline);
