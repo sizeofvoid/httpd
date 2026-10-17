@@ -34,7 +34,7 @@
 #include "log.h"
 
 int	 config_getserver_config(struct httpd *, struct server *,
-    struct imsg *);
+    struct server_config *, struct ibuf*);
 int	 config_getserver_auth(struct httpd *, struct server_config *);
 
 int
@@ -734,36 +734,24 @@ config_getserver_auth(struct httpd *env, struct server_config *srv_conf)
 
 int
 config_getserver_config(struct httpd *env, struct server *srv,
-    struct imsg *imsg)
+    struct server_config *conf, struct ibuf *ibuf)
 {
 #ifdef DEBUG
 	struct privsep		*ps = env->sc_ps;
 #endif
 	struct server_config	*srv_conf, *parent;
-	uint8_t			*p = imsg->data;
 	uint64_t		 f;
-	size_t			 s;
 
 	if ((srv_conf = calloc(1, sizeof(*srv_conf))) == NULL)
 		return (-1);
-
-	if (imsg_get_len(imsg) < sizeof(*srv_conf))
-		fatalx("%s: bad length imsg received", __func__);
-	memcpy(srv_conf, p, sizeof(*srv_conf));
-	s = sizeof(*srv_conf);
-
-	/* Reset these variables to avoid free'ing invalid pointers */
+	memcpy(srv_conf, conf, sizeof(*srv_conf));
 	serverconfig_reset(srv_conf);
-
-	if ((IMSG_DATA_SIZE(imsg) - s) < (size_t)srv_conf->return_uri_len) {
-		log_debug("%s: invalid message length", __func__);
-		goto fail;
-	}
 
 	TAILQ_FOREACH(parent, &srv->srv_hosts, entry) {
 		if (strcmp(parent->name, srv_conf->name) == 0)
 			break;
 	}
+
 	if (parent == NULL)
 		parent = &srv->srv_conf;
 
@@ -775,7 +763,7 @@ config_getserver_config(struct httpd *env, struct server *srv,
 	 * aren't needed in the virtual hosts unless we implement SNI.
 	 */
 	if (srv_conf->return_uri_len != 0) {
-		if ((srv_conf->return_uri = get_data(p + s,
+		if ((srv_conf->return_uri = get_data(ibuf_data(ibuf),
 		    srv_conf->return_uri_len)) == NULL)
 			goto fail;
 	}
@@ -927,21 +915,22 @@ config_getserver(struct httpd *env, struct imsg *imsg)
 #endif
 	struct server		*srv = NULL;
 	struct server_config	 srv_conf;
-	uint8_t			*p = imsg->data;
-	size_t			 s;
 	int			 fd;
+	struct ibuf		 ibuf;
 
-	if (imsg_get_len(imsg) < sizeof(srv_conf))
+	if (imsg_get_ibuf(imsg, &ibuf) == -1) {
+		log_warn("%s: imsg_get_ibuf", __func__);
+		return (-1);
+	}
+	if (ibuf_get(&ibuf, &srv_conf, sizeof(srv_conf)) == -1)
 		fatalx("%s: bad length imsg received", __func__);
-	memcpy(&srv_conf, p, sizeof(srv_conf));
-	s = sizeof(srv_conf);
 
-	/* Reset these variables to avoid free'ing invalid pointers */
 	serverconfig_reset(&srv_conf);
 
 	fd = imsg_get_fd(imsg);
 
-	if ((IMSG_DATA_SIZE(imsg) - s) < (size_t)srv_conf.return_uri_len) {
+	/* what is left in ibuf is the return_uri */
+	if (ibuf_size(&ibuf) < (size_t)srv_conf.return_uri_len) {
 		log_debug("%s: invalid message length", __func__);
 		goto fail;
 	}
@@ -956,7 +945,7 @@ config_getserver(struct httpd *env, struct imsg *imsg)
 			else
 				close(fd);
 		}
-		return (config_getserver_config(env, srv, imsg));
+		return (config_getserver_config(env, srv, &srv_conf, &ibuf));
 	}
 
 	if (srv_conf.flags & SRVFLAG_LOCATION)
@@ -983,7 +972,7 @@ config_getserver(struct httpd *env, struct imsg *imsg)
 	 * Get all variable-length values for the parent server.
 	 */
 	if (srv->srv_conf.return_uri_len != 0) {
-		if ((srv->srv_conf.return_uri = get_data(p + s,
+		if ((srv->srv_conf.return_uri = get_data(ibuf_data(&ibuf),
 		    srv->srv_conf.return_uri_len)) == NULL)
 			goto fail;
 	}

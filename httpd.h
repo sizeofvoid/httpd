@@ -164,8 +164,6 @@ struct imsgev {
 	short			 events;
 };
 
-#define IMSG_DATA_SIZE(imsg)	((imsg)->hdr.len - IMSG_HEADER_SIZE)
-
 enum imsg_type {
 	IMSG_NONE,
 	IMSG_CTL_OK,
