@@ -311,35 +311,25 @@ logger_dispatch_parent(int fd, struct privsep_proc *p, struct imsg *imsg)
 {
 	switch (imsg_get_type(imsg)) {
 	case IMSG_CFG_SERVER:
-		if (config_getserver(httpd_env, imsg) != 0) {
+		if (config_getserver(httpd_env, imsg) != 0)
 			fatalx("%s: config_getserver failed", __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_CFG_DONE:
-		if (config_getcfg(httpd_env, imsg) != 0) {
+		if (config_getcfg(httpd_env, imsg) != 0)
 			fatalx("%s: config_getcfg failed", __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_CTL_START:
 	case IMSG_CTL_REOPEN:
-		if (logger_start() != 0) {
+		if (logger_start() != 0)
 			fatalx("%s: logger_start failed", __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_CTL_RESET:
-		if (config_getreset(httpd_env, imsg) != 0) {
+		if (config_getreset(httpd_env, imsg) != 0)
 			fatalx("%s: config_getreset failed", __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_LOG_OPEN:
-		if (logger_open_fd(imsg) != 0) {
+		if (logger_open_fd(imsg) != 0)
 			fatalx("%s: logger_open_fd failed", __func__);
-			return (-1);
-		}
 		break;
 	default:
 		return (-1);

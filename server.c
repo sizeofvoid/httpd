@@ -1381,66 +1381,46 @@ server_dispatch_parent(int fd, struct privsep_proc *p, struct imsg *imsg)
 
 	switch (imsg_get_type(imsg)) {
 	case IMSG_CFG_MEDIA:
-		if (config_getmedia(httpd_env, imsg) != 0) {
+		if (config_getmedia(httpd_env, imsg) != 0)
 			fatalx("%s: config_getmedia failed", __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_CFG_AUTH:
-		if (config_getauth(httpd_env, imsg) != 0) {
+		if (config_getauth(httpd_env, imsg) != 0)
 			fatalx("%s: config_getauth failed", __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_CFG_SERVER:
-		if (config_getserver(httpd_env, imsg) != 0) {
+		if (config_getserver(httpd_env, imsg) != 0)
 			fatalx("%s: config_getserver failed", __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_CFG_TLS:
-		if (config_getserver_tls(httpd_env, imsg) != 0) {
+		if (config_getserver_tls(httpd_env, imsg) != 0)
 			fatalx("%s: config_getserver_tls failed", __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_CFG_FCGI:
-		if (config_getserver_fcgiparams(httpd_env, imsg) != 0) {
+		if (config_getserver_fcgiparams(httpd_env, imsg) != 0)
 			fatalx("%s: config_getserver_fcgiparams failed",
 			    __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_CFG_HEADERS:
-		if (config_getserver_headers(httpd_env, imsg) != 0) {
+		if (config_getserver_headers(httpd_env, imsg) != 0)
 			fatalx("%s: config_getserver_headers failed", __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_CFG_HEADER_RULES:
-		if (config_getserver_header_rules(httpd_env, imsg) != 0) {
+		if (config_getserver_header_rules(httpd_env, imsg) != 0)
 			fatalx("%s: config_getserver_header_rules failed",
 			    __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_CFG_DONE:
-		if (config_getcfg(httpd_env, imsg) != 0) {
+		if (config_getcfg(httpd_env, imsg) != 0)
 			fatalx("%s: config_getcfg failed", __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_CTL_START:
-		if (server_launch() != 0) {
+		if (server_launch() != 0)
 			fatalx("%s: server_launch failed", __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_CTL_RESET:
-		if (config_getreset(httpd_env, imsg) != 0) {
+		if (config_getreset(httpd_env, imsg) != 0)
 			fatalx("%s: config_getreset failed", __func__);
-			return (-1);
-		}
 		break;
 	case IMSG_TLSTICKET_REKEY:
 		if (imsg_get_data(imsg, &key, sizeof(key)) == -1)
@@ -1452,8 +1432,7 @@ server_dispatch_parent(int fd, struct privsep_proc *p, struct imsg *imsg)
 		}
 		if (tls_config_add_ticket_key(srv->srv_tls_config,
 		    key.tt_keyrev, key.tt_key, sizeof(key.tt_key)) == -1) {
-			log_debug("%s: tls_config_add_ticket_key", __func__);
-			return (-1);
+			fatalx("%s: tls_config_add_ticket_key", __func__);
 		}
 		break;
 	default:
