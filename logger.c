@@ -337,6 +337,7 @@ logger_dispatch_parent(int fd, struct privsep_proc *p, struct imsg *imsg)
 			fatalx("%s: logger_open_fd failed", __func__);
 			return (-1);
 		}
+		break;
 	default:
 		return (-1);
 	}
