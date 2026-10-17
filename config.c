@@ -393,7 +393,9 @@ config_getserver_fcgiparams(struct httpd *env, struct imsg *imsg)
 
 	fp->name = ibuf_get_string(&ibuf, fpmsg.namelen);
 	fp->value = ibuf_get_string(&ibuf, fpmsg.vallen);
-	if (fp->name == NULL || fp->value == NULL) {
+	if (fp->name == NULL || fp->value == NULL ||
+	    ibuf_size(&ibuf) != 0) {
+	    	log_debug("%s: invalid message length", __func__);
 		free(fp->name);
 		free(fp->value);
 		free(fp);
@@ -472,7 +474,9 @@ config_getserver_headers(struct httpd *env, struct imsg *imsg)
 
 	hdr->name = ibuf_get_string(&ibuf, hmsg.namelen);
 	hdr->value = ibuf_get_string(&ibuf, hmsg.vallen);
-	if (hdr->name == NULL || hdr->value == NULL) {
+	if (hdr->name == NULL || hdr->value == NULL ||
+	    ibuf_size(&ibuf) != 0) {
+	    	log_debug("%s: invalid message length", __func__);
 		free(hdr->name);
 		free(hdr->value);
 		free(hdr);
@@ -556,7 +560,8 @@ config_getserver_header_rules(struct httpd *env, struct imsg *imsg)
 	rule->return_uri = ibuf_get_string(&ibuf, hmsg.urilen);
 
 	if (rule->name == NULL || rule->value == NULL ||
-	    rule->return_uri == NULL) {
+	    rule->return_uri == NULL || ibuf_size(&ibuf) != 0) {
+	    	log_debug("%s: invalid message length", __func__);
 		free(rule->name);
 		free(rule->value);
 		free(rule->return_uri);
@@ -930,7 +935,7 @@ config_getserver(struct httpd *env, struct imsg *imsg)
 	fd = imsg_get_fd(imsg);
 
 	/* what is left in ibuf is the return_uri */
-	if (ibuf_size(&ibuf) < (size_t)srv_conf.return_uri_len) {
+	if (ibuf_size(&ibuf) != (size_t)srv_conf.return_uri_len) {
 		log_debug("%s: invalid message length", __func__);
 		goto fail;
 	}
