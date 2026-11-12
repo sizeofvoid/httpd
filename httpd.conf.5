@@ -320,7 +320,12 @@ The capture index
 .Ar n
 of a string that was captured by the enclosing
 .Ic location match
-option.
+option or, if there is none, by the
+.Ic server match
+or
+.Ic alias match
+option that selected the server,
+if its pattern contains captures.
 .El
 .It Ic connection Ar option
 Set the specified options and limits for HTTP connections.

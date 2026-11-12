@@ -289,6 +289,7 @@ struct client {
 	uint32_t		 clt_srv_id;
 	struct sockaddr_storage	 clt_srv_ss;
 	struct str_match	 clt_srv_match;
+	struct str_match	 clt_loc_match;
 
 	int			 clt_s;
 	in_port_t		 clt_port;

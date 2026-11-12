@@ -847,6 +847,7 @@ server_reset_http(struct client *clt)
 	clt->clt_bev->readcb = server_read_http;
 	clt->clt_srv_conf = &srv->srv_conf;
 	str_match_free(&clt->clt_srv_match);
+	str_match_free(&clt->clt_loc_match);
 }
 
 ssize_t
@@ -1221,6 +1222,7 @@ server_close_http(struct client *clt)
 	clt->clt_remote_user = NULL;
 
 	str_match_free(&clt->clt_srv_match);
+	str_match_free(&clt->clt_loc_match);
 }
 
 char *
@@ -1233,13 +1235,16 @@ server_expand_http(struct client *clt, const char *val, char *buf,
 	const char		*errstr = NULL, *p;
 	size_t			 size;
 	int			 n, ret;
+	struct str_match	*m;
 
 	if (strlcpy(buf, val, len) >= len)
 		return (NULL);
 
+	m = (srv_conf->flags & SRVFLAG_LOCATION_MATCH) ?
+	    &clt->clt_loc_match : &clt->clt_srv_match;
+
 	/* Find previously matched substrings by index */
-	for (p = val; clt->clt_srv_match.sm_nmatch &&
-	    (p = strstr(p, "%")) != NULL; p++) {
+	for (p = val; m->sm_nmatch && (p = strstr(p, "%")) != NULL; p++) {
 		if (!isdigit((unsigned char)*(p + 1)))
 			continue;
 
@@ -1248,13 +1253,18 @@ server_expand_http(struct client *clt, const char *val, char *buf,
 		if (size >= sizeof(ibuf))
 			return (NULL);
 		(void)strlcpy(ibuf, p, size);
-		n = strtonum(ibuf + 1, 0,
-		    clt->clt_srv_match.sm_nmatch - 1, &errstr);
-		if (errstr != NULL)
-			return (NULL);
+		n = strtonum(ibuf + 1, 0, m->sm_nmatch - 1, &errstr);
+		/* Not a valid capture index, keep it as is. */
+		if (errstr != NULL) {
+			/*
+			 * XXX "%" is ambiguous with percent-encoding (%2F)
+			 * is expanded if there are two captures.
+			 */
+			continue;
+		}
 
 		/* Expand variable with matched value */
-		if ((str = url_encode(clt->clt_srv_match.sm_match[n])) == NULL)
+		if ((str = url_encode(m->sm_match[n])) == NULL)
 			return (NULL);
 		ret = expand_string(buf, len, ibuf, str);
 		free(str);
@@ -1398,7 +1408,6 @@ server_by_host_header(struct client *clt, char *hostval)
 	char			 hostname[HOST_NAME_MAX + 1];
 	struct server		*srv = clt->clt_srv;
 	struct server_config	*srv_conf;
-	struct str_find		 sm;
 	const char		*errstr = NULL;
 	int			 portval = -1, ret;
 
@@ -1415,11 +1424,21 @@ server_by_host_header(struct client *clt, char *hostval)
 			    ntohs(srv_conf->port), hostval, hostname);
 		}
 #endif
+		errstr = NULL;
 		if (srv_conf->flags & SRVFLAG_LOCATION)
 			continue;
 		else if (srv_conf->flags & SRVFLAG_SERVER_MATCH) {
-			ret = str_find(hostname, srv_conf->name, &sm, 1,
-			    &errstr) > 0 ? 0 : -1;
+			ret = str_match(hostname, srv_conf->name,
+			    &clt->clt_srv_match, &errstr);
+			/*
+			 * XXX
+			 * Only patterns with groups provide captures.
+			 * A "(" in a set or escaped is taken for a group,
+			 * then %1 is the whole host. Hostnames cannot
+			 * contain "(", so it does not matter in practice.
+			 */
+			if (ret == 0 && strchr(srv_conf->name, '(') == NULL)
+				str_match_free(&clt->clt_srv_match);
 		} else {
 			ret = fnmatch(srv_conf->name, hostname, FNM_CASEFOLD);
 		}
@@ -1428,6 +1447,8 @@ server_by_host_header(struct client *clt, char *hostval)
 			/* Found */
 			return srv_conf;
 		}
+		/* Not selected, drop its captures */
+		str_match_free(&clt->clt_srv_match);
 	}
 	/* No match, keep the default server */
 	return (clt->clt_srv_conf);
@@ -1715,6 +1736,9 @@ server_getlocation(struct client *clt, const char *path)
 	const char		*errstr = NULL;
 	int			 ret;
 
+	/* Drop captures of the previously selected location */
+	str_match_free(&clt->clt_loc_match);
+
 	/* Now search for the location */
 	TAILQ_FOREACH(location, &srv->srv_hosts, entry) {
 #ifdef DEBUG
@@ -1727,8 +1751,9 @@ server_getlocation(struct client *clt, const char *path)
 		    location->parent_id == srv_conf->parent_id) {
 			errstr = NULL;
 			if (location->flags & SRVFLAG_LOCATION_MATCH) {
+				str_match_free(&clt->clt_loc_match);
 				ret = str_match(path, location->location,
-				    &clt->clt_srv_match, &errstr);
+				    &clt->clt_loc_match, &errstr);
 			} else {
 				ret = fnmatch(location->location,
 				    path, FNM_CASEFOLD);
@@ -1737,7 +1762,6 @@ server_getlocation(struct client *clt, const char *path)
 				if ((ret = server_locationaccesstest(location,
 				    path)) == -1)
 					return (NULL);
-
 				if (ret)
 					continue;
 				/* Replace host configuration */
