@@ -1385,7 +1385,6 @@ server_by_host_header(struct client *clt, char *hostval)
 	char			 hostname[HOST_NAME_MAX + 1];
 	struct server		*srv = clt->clt_srv;
 	struct server_config	*srv_conf;
-	struct str_find		 sm;
 	const char		*errstr = NULL;
 	int			 portval = -1, ret;
 
@@ -1402,11 +1401,13 @@ server_by_host_header(struct client *clt, char *hostval)
 			    ntohs(srv_conf->port), hostval, hostname);
 		}
 #endif
+		errstr = NULL;
 		if (srv_conf->flags & SRVFLAG_LOCATION)
 			continue;
 		else if (srv_conf->flags & SRVFLAG_SERVER_MATCH) {
-			ret = str_find(hostname, srv_conf->name, &sm, 1,
-			    &errstr) > 0 ? 0 : -1;
+			str_match_free(&clt->clt_srv_match);
+			ret = str_match(hostname, srv_conf->name,
+			    &clt->clt_srv_match, &errstr);
 		} else {
 			ret = fnmatch(srv_conf->name, hostname, FNM_CASEFOLD);
 		}
@@ -1415,6 +1416,8 @@ server_by_host_header(struct client *clt, char *hostval)
 			/* Found */
 			return srv_conf;
 		}
+		/* not selected, drop its captures */
+		str_match_free(&clt->clt_srv_match);
 	}
 	/* No match, keep the default server */
 	return (clt->clt_srv_conf);
@@ -1625,6 +1628,7 @@ server_getlocation(struct client *clt, const char *path)
 	struct server		*srv = clt->clt_srv;
 	struct server_config	*srv_conf = clt->clt_srv_conf, *location;
 	const char		*errstr = NULL;
+	struct str_match	 lm;
 	int			 ret;
 
 	/* Now search for the location */
@@ -1638,20 +1642,33 @@ server_getlocation(struct client *clt, const char *path)
 		if ((location->flags & SRVFLAG_LOCATION) &&
 		    location->parent_id == srv_conf->parent_id) {
 			errstr = NULL;
+			memset(&lm, 0, sizeof(lm));
 			if (location->flags & SRVFLAG_LOCATION_MATCH) {
 				ret = str_match(path, location->location,
-				    &clt->clt_srv_match, &errstr);
+				    &lm, &errstr);
 			} else {
 				ret = fnmatch(location->location,
 				    path, FNM_CASEFOLD);
 			}
 			if (ret == 0 && errstr == NULL) {
 				if ((ret = server_locationaccesstest(location,
-				    path)) == -1)
+				    path)) == -1) {
+					str_match_free(&lm);
 					return (NULL);
+				}
 
-				if (ret)
+				if (ret) {
+					str_match_free(&lm);
 					continue;
+				}
+
+				/* Use location captures, keep the server ones
+				 * otherwise */
+				if (lm.sm_nmatch > 0) {
+					str_match_free(&clt->clt_srv_match);
+					clt->clt_srv_match = lm;
+				}
+
 				/* Replace host configuration */
 				clt->clt_srv_conf = srv_conf = location;
 				break;
